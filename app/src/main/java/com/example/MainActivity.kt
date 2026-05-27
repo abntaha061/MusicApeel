@@ -47,6 +47,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.SubcomposeAsyncImage
 import com.example.data.db.SongEntity
 import com.example.presentation.components.MiniPlayer
+import com.example.presentation.components.AuroraBackground
 import com.example.presentation.home.HomeScreen
 import com.example.presentation.home.HomeViewModel
 import com.example.presentation.home.formatDuration
@@ -181,88 +182,106 @@ fun AppContent(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Transparent)
-            ) {
-                // A. Persistent Mini Player floating overlay above Navigation Bar
-                if (currentSong != null) {
-                    MiniPlayer(
-                        currentSong = currentSong,
-                        isPlaying = isPlaying,
-                        currentPositionMs = currentPosition,
-                        onPlayPauseClicked = { musicService.togglePlayPause() },
-                        onNextClicked = { musicService.playNext() },
-                        onPreviousClicked = { musicService.playPrevious() },
-                        onMiniPlayerClicked = { isPlayerExpanded = true }
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                }
-
-                // B. Translucent Glossy Bottom Navigation Bar
-                NavigationBar(
-                    containerColor = Color(0xFF0C0C0D).copy(alpha = 0.94f),
-                    tonalElevation = 0.dp,
+            if (!isPlayerExpanded) {
+                Column(
                     modifier = Modifier
-                        .border(
-                            width = 0.5.dp,
-                            brush = Brush.verticalGradient(
-                                listOf(Color.White.copy(alpha = 0.10f), Color.Transparent)
-                            ),
-                            shape = androidx.compose.ui.graphics.RectangleShape
-                        )
+                        .fillMaxWidth()
+                        .background(Color.Transparent)
                 ) {
-                    NavigationBarItem(
-                        selected = selectedTab == "home",
-                        onClick = { selectedTab = "home" },
-                        icon = { Icon(Icons.Rounded.Home, contentDescription = null) },
-                        label = { Text("الرئيسية", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF1E88E5),
-                            selectedTextColor = Color(0xFF1E88E5),
-                            unselectedIconColor = Color.White.copy(alpha = 0.45f),
-                            unselectedTextColor = Color.White.copy(alpha = 0.45f),
-                            indicatorColor = Color.White.copy(alpha = 0.06f)
+                    // A. Persistent Mini Player floating overlay above Navigation Bar
+                    if (currentSong != null) {
+                        MiniPlayer(
+                            currentSong = currentSong,
+                            isPlaying = isPlaying,
+                            currentPositionMs = currentPosition,
+                            onPlayPauseClicked = { musicService.togglePlayPause() },
+                            onNextClicked = { musicService.playNext() },
+                            onPreviousClicked = { musicService.playPrevious() },
+                            onMiniPlayerClicked = { isPlayerExpanded = true }
                         )
-                    )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
 
-                    NavigationBarItem(
-                        selected = selectedTab == "search",
-                        onClick = { selectedTab = "search" },
-                        icon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                        label = { Text("البحث", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF1E88E5),
-                            selectedTextColor = Color(0xFF1E88E5),
-                            unselectedIconColor = Color.White.copy(alpha = 0.45f),
-                            unselectedTextColor = Color.White.copy(alpha = 0.45f),
-                            indicatorColor = Color.White.copy(alpha = 0.06f)
+                    // B. Translucent Glossy Bottom Navigation Bar
+                    NavigationBar(
+                        containerColor = Color(0xFF0C0C0D).copy(alpha = 0.94f),
+                        tonalElevation = 0.dp,
+                        modifier = Modifier
+                            .border(
+                                width = 0.5.dp,
+                                brush = Brush.verticalGradient(
+                                    listOf(Color.White.copy(alpha = 0.10f), Color.Transparent)
+                                ),
+                                shape = androidx.compose.ui.graphics.RectangleShape
+                            )
+                    ) {
+                        NavigationBarItem(
+                            selected = selectedTab == "home",
+                            onClick = { selectedTab = "home" },
+                            icon = { Icon(Icons.Rounded.Home, contentDescription = null) },
+                            label = { Text("الرئيسية", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFF1E88E5),
+                                selectedTextColor = Color(0xFF1E88E5),
+                                unselectedIconColor = Color.White.copy(alpha = 0.45f),
+                                unselectedTextColor = Color.White.copy(alpha = 0.45f),
+                                indicatorColor = Color.White.copy(alpha = 0.06f)
+                            )
                         )
-                    )
 
-                    NavigationBarItem(
-                        selected = selectedTab == "library",
-                        onClick = { selectedTab = "library" },
-                        icon = { Icon(Icons.Rounded.LibraryMusic, contentDescription = null) },
-                        label = { Text("مكتبتي", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF1E88E5),
-                            selectedTextColor = Color(0xFF1E88E5),
-                            unselectedIconColor = Color.White.copy(alpha = 0.45f),
-                            unselectedTextColor = Color.White.copy(alpha = 0.45f),
-                            indicatorColor = Color.White.copy(alpha = 0.06f)
+                        NavigationBarItem(
+                            selected = selectedTab == "search",
+                            onClick = { selectedTab = "search" },
+                            icon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                            label = { Text("البحث", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFF1E88E5),
+                                selectedTextColor = Color(0xFF1E88E5),
+                                unselectedIconColor = Color.White.copy(alpha = 0.45f),
+                                unselectedTextColor = Color.White.copy(alpha = 0.45f),
+                                indicatorColor = Color.White.copy(alpha = 0.06f)
+                            )
                         )
-                    )
+
+                        NavigationBarItem(
+                            selected = selectedTab == "library",
+                            onClick = { selectedTab = "library" },
+                            icon = { Icon(Icons.Rounded.LibraryMusic, contentDescription = null) },
+                            label = { Text("مكتبتي", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFF1E88E5),
+                                selectedTextColor = Color(0xFF1E88E5),
+                                unselectedIconColor = Color.White.copy(alpha = 0.45f),
+                                unselectedTextColor = Color.White.copy(alpha = 0.45f),
+                                indicatorColor = Color.White.copy(alpha = 0.06f)
+                            )
+                        )
+                    }
                 }
             }
         }
     ) { innerPadding ->
+        val dominantColors by playerViewModel.dominantColors.collectAsState()
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = innerPadding.calculateBottomPadding())
+                .padding(bottom = if (isPlayerExpanded) 0.dp else innerPadding.calculateBottomPadding())
         ) {
+            // Draw beautiful backgrounds behind routing screens
+            if (currentSong != null) {
+                AuroraBackground(
+                    dominantColors = dominantColors,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFF070708))
+                )
+            }
+
             // Screen router
             when (selectedTab) {
                 "home" -> HomeScreen(
@@ -282,7 +301,7 @@ fun AppContent(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF070708))
+                            .background(Color.Black.copy(alpha = 0.45f))
                             .padding(20.dp)
                     ) {
                         Text(
@@ -400,7 +419,7 @@ fun AppContent(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF070708))
+                            .background(Color.Black.copy(alpha = 0.45f))
                             .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {

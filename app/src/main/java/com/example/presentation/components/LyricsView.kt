@@ -1,6 +1,7 @@
 package com.example.presentation.components
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -12,16 +13,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.lyrics.LrcLine
 import com.example.data.lyrics.LrcParser
-import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 @Composable
 fun LyricsView(
@@ -37,7 +36,7 @@ fun LyricsView(
 
     val listState = rememberLazyListState()
 
-    // Synchronize auto scroll centering of the lyrics
+    // Automatically center active lyric smoothly
     LaunchedEffect(activeLineIndex) {
         if (lines.isNotEmpty() && activeLineIndex in lines.indices) {
             // Animate scroll to active lyric line centered
@@ -64,47 +63,63 @@ fun LyricsView(
         } else {
             LazyColumn(
                 state = listState,
-                contentPadding = PaddingValues(top = 180.dp, bottom = 260.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                modifier = Modifier.fillMaxSize()
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 24.dp,   // More breathing space from right edge
+                    top = 180.dp,
+                    bottom = 260.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.End // Align item placeholders to the right
             ) {
-                itemsIndexed(lines) { index, line ->
+                itemsIndexed(
+                    items = lines,
+                    key = { index, _ -> index }
+                ) { index, line ->
                     val isActive = index == activeLineIndex
-                    val distance = kotlin.math.abs(index - activeLineIndex)
+                    val distance = abs(index - activeLineIndex)
 
-                    // Compute smooth alpha/scale based on proximity to active line
-                    val targetAlpha = when {
-                        isActive -> 1.0f
-                        distance == 1 -> 0.55f
-                        distance == 2 -> 0.35f
-                        else -> 0.15f
-                    }
+                    // Smooth dynamic scaling of font size depending on active state
+                    val fontSize by animateFloatAsState(
+                        targetValue = when {
+                            isActive -> 26f
+                            distance == 1 -> 20f
+                            else -> 17f
+                        },
+                        animationSpec = tween(300),
+                        label = "fontSize"
+                    )
 
-                    val displayFont = if (isActive) FontWeight.Bold else FontWeight.Medium
-                    val fontSize = if (isActive) 26.sp else 19.sp
+                    // Smooth alpha transition based on closeness to current line
+                    val alpha by animateFloatAsState(
+                        targetValue = when {
+                            isActive -> 1.0f
+                            distance == 1 -> 0.65f
+                            distance == 2 -> 0.45f
+                            else -> 0.30f
+                        },
+                        animationSpec = tween(300),
+                        label = "alpha"
+                    )
 
-                    Column(
+                    Text(
+                        text = line.text,
+                        fontSize = fontSize.sp,
+                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                        color = Color.White.copy(alpha = alpha),
+                        textAlign = TextAlign.Right, // Right align text characters
+                        lineHeight = (fontSize * 1.4f).sp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                            .alpha(targetAlpha)
+                            .padding(vertical = 8.dp)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {
                                 onLineClicked(line.timestamp)
-                            },
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = line.text,
-                            color = if (isActive) Color.White else Color.White.copy(alpha = 0.8f),
-                            fontSize = fontSize,
-                            fontWeight = displayFont,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 36.sp
-                        )
-                    }
+                            }
+                    )
                 }
             }
         }

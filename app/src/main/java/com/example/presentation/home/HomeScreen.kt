@@ -47,7 +47,7 @@ fun HomeScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF070708)),
+            .background(Color.Black.copy(alpha = 0.45f)),
         contentPadding = PaddingValues(top = 24.dp, bottom = 160.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp)
     ) {

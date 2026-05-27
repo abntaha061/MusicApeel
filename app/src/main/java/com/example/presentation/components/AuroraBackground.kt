@@ -1,8 +1,10 @@
 package com.example.presentation.components
 
+import android.os.Build
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -10,123 +12,102 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.graphicsLayer
 
 @Composable
 fun AuroraBackground(
     dominantColors: List<Color>,
     modifier: Modifier = Modifier
 ) {
-    // Ensure we always have at least 3 custom colors (fallbacks if palette under-extracts)
-    val color1 = dominantColors.getOrElse(0) { Color(0xFF8E24AA) } // Deep purple
-    val color2 = dominantColors.getOrElse(1) { Color(0xFF1E88E5) } // Blue
-    val color3 = dominantColors.getOrElse(2) { Color(0xFFD81B60) } // Pink
-
-    // Smoothly transition colors when song changes
-    val animatedColor1 by animateColorAsState(targetValue = color1, animationSpec = tween(1200))
-    val animatedColor2 by animateColorAsState(targetValue = color2, animationSpec = tween(1200))
-    val animatedColor3 by animateColorAsState(targetValue = color3, animationSpec = tween(1200))
-
     val infiniteTransition = rememberInfiniteTransition(label = "aurora")
-
-    // Animated positions for the blobs to create a drifting nebula feel
-    val blob1X by infiniteTransition.animateFloat(
-        initialValue = 0.15f,
-        targetValue = 0.75f,
+    
+    // Only 2 animated offsets instead of 8 to minimize calculation overhead
+    val offset1 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(18000, easing = FastOutSlowInEasing),
+            animation = tween(20000, easing = LinearEasing), // 20 seconds loop - extremely smooth and slow
             repeatMode = RepeatMode.Reverse
         ),
-        label = "b1x"
+        label = "o1"
     )
-    val blob1Y by infiniteTransition.animateFloat(
-        initialValue = 0.20f,
-        targetValue = 0.65f,
+    val offset2 by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(14000, easing = LinearEasing),
+            animation = tween(25000, easing = LinearEasing), // 25 seconds loop
             repeatMode = RepeatMode.Reverse
         ),
-        label = "b1y"
+        label = "o2"
     )
+    
+    val color1 = dominantColors.getOrElse(0) { Color(0xFF1E88E5) }
+    val color2 = dominantColors.getOrElse(1) { Color(0xFFD81B60) }
+    val color3 = dominantColors.getOrElse(2) { Color(0xFF004D40) }
 
-    val blob2X by infiniteTransition.animateFloat(
-        initialValue = 0.80f,
-        targetValue = 0.20f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(16000, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "b2x"
-    )
-    val blob2Y by infiniteTransition.animateFloat(
-        initialValue = 0.30f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(19000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "b2y"
-    )
+    // Smooth color transitions during song changes
+    val animatedColor1 by animateColorAsState(targetValue = color1, animationSpec = tween(1500), label = "c1")
+    val animatedColor2 by animateColorAsState(targetValue = color2, animationSpec = tween(1500), label = "c2")
+    val animatedColor3 by animateColorAsState(targetValue = color3, animationSpec = tween(1500), label = "c3")
 
-    val blob3X by infiniteTransition.animateFloat(
-        initialValue = 0.40f,
-        targetValue = 0.60f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(13000, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "b3x"
-    )
-    val blob3Y by infiniteTransition.animateFloat(
-        initialValue = 0.70f,
-        targetValue = 0.10f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(15000, easing = EaseInOutElastic),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "b3y"
-    )
-
-    Canvas(modifier = modifier.fillMaxSize()) {
-        // Draw deep pure black luxury background base
-        drawRect(Color(0xFF030303))
-
-        // Draw Blob 1 (Dynamic Color 1)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(animatedColor1.copy(alpha = 0.40f), Color.Transparent),
-                center = Offset(size.width * blob1X, size.height * blob1Y),
-                radius = size.width * 0.85f
-            ),
-            radius = size.width * 0.85f,
-            center = Offset(size.width * blob1X, size.height * blob1Y),
-            blendMode = BlendMode.Screen
-        )
-
-        // Draw Blob 2 (Dynamic Color 2)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(animatedColor2.copy(alpha = 0.35f), Color.Transparent),
-                center = Offset(size.width * blob2X, size.height * blob2Y),
-                radius = size.width * 0.80f
-            ),
-            radius = size.width * 0.80f,
-            center = Offset(size.width * blob2X, size.height * blob2Y),
-            blendMode = BlendMode.Screen
-        )
-
-        // Draw Blob 3 (Dynamic Color 3)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(animatedColor3.copy(alpha = 0.30f), Color.Transparent),
-                center = Offset(size.width * blob3X, size.height * blob3Y),
-                radius = size.width * 0.75f
-            ),
-            radius = size.width * 0.75f,
-            center = Offset(size.width * blob3X, size.height * blob3Y),
-            blendMode = BlendMode.Screen
-        )
-
-        // Final super dark scrim for elegant content readability
-        drawRect(Color.Black.copy(alpha = 0.55f))
+    Box(modifier = modifier) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    // Hardware accelerated GPU blur on Android S+ (API 31+)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        try {
+                            renderEffect = BlurEffect(80f, 80f, TileMode.Clamp)
+                        } catch (t: Throwable) {
+                            t.printStackTrace()
+                        }
+                    }
+                }
+        ) {
+            // Underlay dark luxury canvas background
+            drawRect(Color(0xFF030303))
+            
+            // Blob 1: Animates slowly horizontally near top
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(animatedColor1.copy(alpha = 0.50f), Color.Transparent),
+                    center = Offset(size.width * offset1, size.height * 0.3f),
+                    radius = size.width * 0.8f
+                ),
+                radius = size.width * 0.8f,
+                center = Offset(size.width * offset1, size.height * 0.3f),
+                blendMode = BlendMode.Screen
+            )
+            
+            // Blob 2: Animates slowly horizontally near bottom
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(animatedColor2.copy(alpha = 0.45f), Color.Transparent),
+                    center = Offset(size.width * offset2, size.height * 0.7f),
+                    radius = size.width * 0.7f
+                ),
+                radius = size.width * 0.7f,
+                center = Offset(size.width * offset2, size.height * 0.7f),
+                blendMode = BlendMode.Screen
+            )
+            
+            // Blob 3: Stationary stable center blob
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(animatedColor3.copy(alpha = 0.35f), Color.Transparent),
+                    center = Offset(size.width * 0.5f, size.height * 0.5f),
+                    radius = size.width * 0.60f
+                ),
+                radius = size.width * 0.60f,
+                center = Offset(size.width * 0.5f, size.height * 0.5f),
+                blendMode = BlendMode.Screen
+            )
+            
+            // Dark elegant scrim for readability
+            drawRect(Color.Black.copy(alpha = 0.40f))
+        }
     }
 }
