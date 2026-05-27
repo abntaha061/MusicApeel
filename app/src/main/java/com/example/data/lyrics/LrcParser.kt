@@ -1,44 +1,40 @@
 package com.example.data.lyrics
 
 import java.io.File
+import android.util.Log
 
 data class LrcLine(
     val timestamp: Long, // timestamp in ms
     val text: String,
-    val translation: String? = null // Optional translation for the translation button 🌐
+    val translation: String? = null
 )
 
 object LrcParser {
     fun parseLrcFile(content: String): List<LrcLine> {
+        if (content.isBlank()) return emptyList()
         // MATCH: [00:12.34] or [00:12.345] or [00:12:34] content
-        val regex = Regex("""\[(\d{2}):(\d{2})[.:](\d{2,3})\](.*)""")
+        val regex = Regex("""\[(\d{1,2}):(\d{2})[.:](\d{2,3})\](.*)""")
         return content.lines()
             .mapNotNull { line ->
-                regex.find(line)?.let { match ->
-                    val min = match.groupValues[1].toLong()
-                    val sec = match.groupValues[2].toLong()
-                    val fraction = match.groupValues[3].toLong()
-                    val text = match.groupValues[4].trim()
-                    
-                    // If the fraction is 2 digits (e.g. .34), it stands for centiseconds (multiply by 10)
-                    // If 3 digits (e.g. .345), it's milliseconds
-                    val msOffset = if (match.groupValues[3].length == 2) fraction * 10 else fraction
-                    val timestamp = (min * 60 + sec) * 1000 + msOffset
-                    
-                    // Simple logic to mock translation or separate with a specialized delimiter if existing
-                    val actualText: String
-                    val translationText: String?
-                    if (text.contains(" | ")) {
-                        val parts = text.split(" | ", limit = 2)
-                        actualText = parts[0]
-                        translationText = parts[1]
-                    } else {
-                        actualText = text
-                        translationText = mockTranslationOf(text)
+                try {
+                    regex.find(line.trim())?.let { match ->
+                        val min = match.groupValues[1].toLong()
+                        val sec = match.groupValues[2].toLong()
+                        val fractionStr = match.groupValues[3]
+                        val fraction = fractionStr.toLong()
+                        val text = match.groupValues[4].trim()
+                        
+                        // If the fraction is 2 digits (e.g. .34), it stands for centiseconds (multiply by 10)
+                        // If 3 digits (e.g. .345), it's milliseconds
+                        val msOffset = if (fractionStr.length == 2) fraction * 10 else fraction
+                        val timestamp = (min * 60 + sec) * 1000 + msOffset
+                        
+                        // Remove translation support entirely to make lyrics occupy full space
+                        if (text.isNotEmpty()) LrcLine(timestamp, text, null) else null
                     }
-                    
-                    if (actualText.isNotEmpty()) LrcLine(timestamp, actualText, translationText)
-                    else null
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    null
                 }
             }
             .sortedBy { it.timestamp }
@@ -56,26 +52,40 @@ object LrcParser {
         return index
     }
 
-    fun findLrcFile(songPath: String): File? {
-        val base = File(songPath).nameWithoutExtension
-        val dir = File(songPath).parentFile ?: return null
-        return listOf("$base.lrc", "$base.LRC").firstNotNullOfOrNull {
-            File(dir, it).takeIf { f -> f.exists() }
-        }
-    }
+    fun findLrcForSong(songFilePath: String): String? {
+        try {
+            val songFile = File(songFilePath)
+            val songDir = songFile.parentFile ?: return null
+            if (!songDir.exists() || !songDir.isDirectory) return null
+            val songNameNoExt = songFile.nameWithoutExtension.trim()
 
-    // Helper to generate some high-quality translations for demonstration if not parsed
-    private fun mockTranslationOf(arabicText: String): String {
-        return when {
-            arabicText.contains("حبيبي") -> "My love (Habibi)"
-            arabicText.contains("يا غالي") -> "Oh precious one"
-            arabicText.contains("ليلي") || arabicText.contains("الليل") -> "My night"
-            arabicText.contains("عيون") || arabicText.contains("عيني") -> "My eyes"
-            arabicText.contains("قلبي") || arabicText.contains("القلب") -> "My heart"
-            arabicText.contains("روح") || arabicText.contains("روحي") -> "My soul"
-            arabicText.contains("شوق") -> "Yearning / Longing"
-            arabicText.contains("طرب") -> "Rapture / Musical ecstasy"
-            else -> ""
+            // Strategy 1: Exact match (same name, .lrc / .LRC extension)
+            val exactMatch = File(songDir, "$songNameNoExt.lrc")
+            if (exactMatch.exists()) return exactMatch.absolutePath
+            val exactMatchUpper = File(songDir, "$songNameNoExt.LRC")
+            if (exactMatchUpper.exists()) return exactMatchUpper.absolutePath
+
+            // Strategy 2: Case-insensitive match
+            val caseInsensitive = songDir.listFiles()?.firstOrNull { file ->
+                file.isFile &&
+                file.extension.lowercase() == "lrc" &&
+                file.nameWithoutExtension.trim().lowercase() == songNameNoExt.lowercase()
+            }
+            if (caseInsensitive != null) return caseInsensitive.absolutePath
+
+            // Strategy 3: Normalized match (remove special chars, spaces)
+            fun normalize(s: String) = s.lowercase()
+                .replace(Regex("[^a-z0-9\\u0600-\\u06FF]"), "") // keep Arabic + alphanumeric
+            
+            val normalized = songDir.listFiles()?.firstOrNull { file ->
+                file.isFile &&
+                file.extension.lowercase() == "lrc" &&
+                normalize(file.nameWithoutExtension) == normalize(songNameNoExt)
+            }
+            return normalized?.absolutePath
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
         }
     }
 }

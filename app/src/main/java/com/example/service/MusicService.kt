@@ -85,99 +85,126 @@ class MusicService : Service() {
     fun playSongList(songs: List<SongEntity>, startIndex: Int) {
         if (songs.isEmpty()) return
         
-        // Check list change, increment prior listening stats
-        checkAndIncrementPlayCount()
+        try {
+            // Check list change, increment prior listening stats
+            checkAndIncrementPlayCount()
 
-        _playlist.value = songs
-        
-        player.clearMediaItems()
-        songs.forEach { song ->
-            val mediaUri = if (song.filePath.startsWith("assets:///")) {
-                UriUtil.getAssetUri(song.filePath)
-            } else {
-                song.filePath
+            _playlist.value = songs
+            
+            player.clearMediaItems()
+            songs.forEach { song ->
+                val mediaUri = if (song.filePath.startsWith("assets:///")) {
+                    UriUtil.getAssetUri(song.filePath)
+                } else {
+                    val file = java.io.File(song.filePath)
+                    if (file.exists()) {
+                        android.net.Uri.fromFile(file).toString()
+                    } else {
+                        song.filePath
+                    }
+                }
+                player.addMediaItem(MediaItem.fromUri(mediaUri))
             }
-            player.addMediaItem(MediaItem.fromUri(mediaUri))
+
+            if (startIndex in songs.indices) {
+                player.seekTo(startIndex, 0L)
+                player.prepare()
+                player.play()
+
+                val selectedSong = songs[startIndex]
+                _currentSong.value = selectedSong
+                
+                // Track listen stats initiation
+                songStartTime = System.currentTimeMillis()
+                currentSongId = selectedSong.id
+                currentSongDuration = selectedSong.duration
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-
-        player.seekTo(startIndex, 0L)
-        player.prepare()
-        player.play()
-
-        val selectedSong = songs[startIndex]
-        _currentSong.value = selectedSong
-        
-        // Track listen stats initiation
-        songStartTime = System.currentTimeMillis()
-        currentSongId = selectedSong.id
-        currentSongDuration = selectedSong.duration
     }
 
     fun togglePlayPause() {
-        if (player.isPlaying) {
-            player.pause()
-        } else {
-            if (player.playbackState == Player.STATE_IDLE) {
-                player.prepare()
+        try {
+            if (player.isPlaying) {
+                player.pause()
+            } else {
+                if (player.playbackState == Player.STATE_IDLE) {
+                    player.prepare()
+                }
+                player.play()
             }
-            player.play()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     fun playNext() {
-        val list = _playlist.value
-        val current = _currentSong.value
-        if (list.isEmpty() || current == null) return
+        try {
+            val list = _playlist.value
+            val current = _currentSong.value
+            if (list.isEmpty() || current == null) return
 
-        val currentIndex = list.indexOfFirst { it.id == current.id }
-        if (currentIndex != -1 && currentIndex < list.size - 1) {
-            // Check list change, increment prior stats
-            checkAndIncrementPlayCount()
-            
-            val nextIndex = currentIndex + 1
-            player.seekTo(nextIndex, 0L)
-            
-            val nextSong = list[nextIndex]
-            _currentSong.value = nextSong
-            
-            songStartTime = System.currentTimeMillis()
-            currentSongId = nextSong.id
-            currentSongDuration = nextSong.duration
-        } else if (list.isNotEmpty()) {
-            // Loop back to start
-            checkAndIncrementPlayCount()
-            player.seekTo(0, 0L)
-            val firstSong = list[0]
-            _currentSong.value = firstSong
-            songStartTime = System.currentTimeMillis()
-            currentSongId = firstSong.id
-            currentSongDuration = firstSong.duration
+            val currentIndex = list.indexOfFirst { it.id == current.id }
+            if (currentIndex != -1 && currentIndex < list.size - 1) {
+                // Check list change, increment prior stats
+                checkAndIncrementPlayCount()
+                
+                val nextIndex = currentIndex + 1
+                player.seekTo(nextIndex, 0L)
+                
+                val nextSong = list[nextIndex]
+                _currentSong.value = nextSong
+                
+                songStartTime = System.currentTimeMillis()
+                currentSongId = nextSong.id
+                currentSongDuration = nextSong.duration
+            } else if (list.isNotEmpty()) {
+                // Loop back to start
+                checkAndIncrementPlayCount()
+                player.seekTo(0, 0L)
+                val firstSong = list[0]
+                _currentSong.value = firstSong
+                songStartTime = System.currentTimeMillis()
+                currentSongId = firstSong.id
+                currentSongDuration = firstSong.duration
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     fun playPrevious() {
-        val list = _playlist.value
-        val current = _currentSong.value
-        if (list.isEmpty() || current == null) return
+        try {
+            val list = _playlist.value
+            val current = _currentSong.value
+            if (list.isEmpty() || current == null) return
 
-        val currentIndex = list.indexOfFirst { it.id == current.id }
-        if (currentIndex != -1 && currentIndex > 0) {
-            checkAndIncrementPlayCount()
-            val prevIndex = currentIndex - 1
-            player.seekTo(prevIndex, 0L)
-            
-            val prevSong = list[prevIndex]
-            _currentSong.value = prevSong
-            
-            songStartTime = System.currentTimeMillis()
-            currentSongId = prevSong.id
-            currentSongDuration = prevSong.duration
+            val currentIndex = list.indexOfFirst { it.id == current.id }
+            if (currentIndex != -1 && currentIndex > 0) {
+                checkAndIncrementPlayCount()
+                val prevIndex = currentIndex - 1
+                player.seekTo(prevIndex, 0L)
+                
+                val prevSong = list[prevIndex]
+                _currentSong.value = prevSong
+                
+                songStartTime = System.currentTimeMillis()
+                currentSongId = prevSong.id
+                currentSongDuration = prevSong.duration
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     fun seekTo(positionMs: Long) {
-        player.seekTo(positionMs)
-        _currentPosition.value = positionMs
+        try {
+            player.seekTo(positionMs)
+            _currentPosition.value = positionMs
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun handlePlaybackEnded() {

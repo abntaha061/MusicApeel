@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -148,6 +149,32 @@ fun AppContent(
 
         if (ContextCompat.checkSelfPermission(context, permissionToCheck) != PackageManager.PERMISSION_GRANTED) {
             permissionLauncher.launch(permissionToCheck)
+        }
+    }
+
+    val activity = context as? android.app.Activity
+    var backPressedOnce by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = true) {
+        if (isPlayerExpanded) {
+            isPlayerExpanded = false
+        } else {
+            when (selectedTab) {
+                "search", "library" -> {
+                    selectedTab = "home"
+                }
+                "home" -> {
+                    if (backPressedOnce) {
+                        activity?.finish()
+                    } else {
+                        backPressedOnce = true
+                        android.widget.Toast.makeText(context, "اضغط مرة أخرى للخروج", android.widget.Toast.LENGTH_SHORT).show()
+                        activity?.window?.decorView?.postDelayed({
+                            backPressedOnce = false
+                        }, 2000L)
+                    }
+                }
+            }
         }
     }
 

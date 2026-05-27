@@ -8,9 +8,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,8 +36,6 @@ fun LyricsView(
     }
 
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    var showTranslation by remember { mutableStateOf(false) }
 
     // Synchronize auto scroll centering of the lyrics
     LaunchedEffect(activeLineIndex) {
@@ -59,7 +54,7 @@ fun LyricsView(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "كلمات الموسيقى غير متوفرة حالياً",
+                    text = "لا توجد كلمات متاحة",
                     color = Color.White.copy(alpha = 0.5f),
                     fontSize = 18.sp,
                     textAlign = TextAlign.Center,
@@ -85,7 +80,6 @@ fun LyricsView(
                         else -> 0.15f
                     }
 
-                    val targetScale = if (isActive) 1.12f else 1.0f
                     val displayFont = if (isActive) FontWeight.Bold else FontWeight.Medium
                     val fontSize = if (isActive) 26.sp else 19.sp
 
@@ -110,52 +104,7 @@ fun LyricsView(
                             textAlign = TextAlign.Center,
                             lineHeight = 36.sp
                         )
-                        
-                        // English translation overlay with custom slide-in animation
-                        if (showTranslation && !line.translation.isNullOrEmpty()) {
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = fadeIn(tween(400)) + slideInVertically(initialOffsetY = { 10 }),
-                                exit = fadeOut(tween(400)) + slideOutVertically()
-                            ) {
-                                Text(
-                                    text = line.translation,
-                                    color = if (isActive) Color(0xFF81D4FA) else Color.White.copy(alpha = 0.5f),
-                                    fontSize = if (isActive) 15.sp else 13.sp,
-                                    fontWeight = FontWeight.Normal,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(top = 6.dp),
-                                    lineHeight = 20.sp
-                                )
-                            }
-                        }
                     }
-                }
-            }
-        }
-
-        // Translation toggle FAB floating bottom-right corner 🌐
-        if (lines.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 90.dp, start = 24.dp, end = 24.dp),
-                contentAlignment = Alignment.BottomStart // RTL makes bottom start equivalent to bottom right
-            ) {
-                FilledIconButton(
-                    onClick = { showTranslation = !showTranslation },
-                    modifier = Modifier.size(54.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = if (showTranslation) Color(0xFF1E88E5) else Color.White.copy(alpha = 0.12f),
-                        contentColor = Color.White
-                    ),
-                    shape = CircleShape
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Language,
-                        contentDescription = "ترجمة الكلمات",
-                        modifier = Modifier.size(26.dp)
-                    )
                 }
             }
         }

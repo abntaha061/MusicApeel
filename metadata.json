@@ -1,5 +1,5 @@
 {
-  "name": "طرب — Tarab Music Player",
+  "name": "Apple Music Player",
   "description": "Arabic glassmorphism music player with smooth animated aurora backgrounds and synced lyric lines.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

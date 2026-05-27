@@ -1,6 +1,7 @@
 package com.example.presentation.player
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,12 +23,37 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun updateSong(song: SongEntity?) {
         if (song == null) return
         
-        // 1. Resolve synced lyrics
-        val lyricsText = MediaScanner.getMockLyricsForSong(song.id)
-        _lyrics.value = lyricsText
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                Log.d("LRC_DEBUG", "Song path: ${song.filePath}")
+                val lrcPath = com.example.data.lyrics.LrcParser.findLrcForSong(song.filePath)
+                Log.d("LRC_DEBUG", "LRC found: $lrcPath")
+                
+                val lyricsText = if (lrcPath != null) {
+                    val file = java.io.File(lrcPath)
+                    try {
+                        file.readText(Charsets.UTF_8)
+                    } catch (e: Exception) {
+                        try {
+                            file.readText(java.nio.charset.Charset.forName("windows-1256"))
+                        } catch (e2: Exception) {
+                            ""
+                        }
+                    }
+                } else {
+                    com.example.data.scanner.MediaScanner.getMockLyricsForSong(song.id)
+                }
+                
+                Log.d("LRC_DEBUG", "Lrc content loaded length: ${lyricsText.length}")
+                _lyrics.value = lyricsText
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _lyrics.value = ""
+            }
 
-        // 2. Generate customized artist color palettes for the Aurora Background 🎨
-        _dominantColors.value = getArtistPalette(song.artist)
+            // 2. Generate customized artist color palettes for the Aurora Background 🎨
+            _dominantColors.value = getArtistPalette(song.artist)
+        }
     }
 
     private fun getArtistPalette(artist: String): List<Color> {
