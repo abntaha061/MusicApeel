@@ -32,46 +32,6 @@ import androidx.compose.ui.unit.sp
 import com.example.data.db.SongEntity
 
 @Composable
-fun AlbumArtMini(filePath: String, modifier: Modifier = Modifier) {
-    // Extract cover artwork dynamically with remember caching to avoid frame-drops
-    val bitmap = remember(filePath) {
-        try {
-            val retriever = MediaMetadataRetriever()
-            retriever.setDataSource(filePath)
-            val bytes = retriever.embeddedPicture
-            retriever.release()
-            bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
-    Box(
-        modifier = modifier
-            .size(48.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color.White.copy(0.1f)),
-        contentAlignment = Alignment.Center
-    ) {
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Rounded.MusicNote,
-                contentDescription = null,
-                tint = Color.White.copy(0.5f),
-                modifier = Modifier.size(24.dp)
-            )
-        }
-    }
-}
-
-@Composable
 fun MiniPlayer(
     currentSong: SongEntity?,
     isPlaying: Boolean,
@@ -116,7 +76,13 @@ fun MiniPlayer(
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AlbumArtMini(filePath = currentSong.filePath)
+            AlbumArtImage(
+                songId = currentSong.id,
+                filePath = currentSong.filePath,
+                modifier = Modifier.size(48.dp),
+                cornerRadius = 10.dp,
+                iconSize = 24.dp
+            )
             
             Spacer(modifier = Modifier.width(12.dp))
 

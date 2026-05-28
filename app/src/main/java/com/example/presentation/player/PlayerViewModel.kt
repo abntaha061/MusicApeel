@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.palette.graphics.Palette
 import com.example.data.db.SongEntity
 import com.example.data.scanner.MediaScanner
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,8 +52,29 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 _lyrics.value = ""
             }
 
-            // 2. Generate customized artist color palettes for the Aurora Background 🎨
-            _dominantColors.value = getArtistPalette(song.artist)
+            // 2. Extract dynamic palette from album art or fall back to artist-tailored vibes
+            val bitmap = com.example.data.utils.AlbumArtLoader.loadBitmap(song.id, song.filePath)
+            var extractedColors: List<Color>? = null
+            
+            if (bitmap != null) {
+                try {
+                    val palette = Palette.from(bitmap).generate()
+                    val list = mutableListOf<Color>()
+                    palette.vibrantSwatch?.let { list.add(Color(it.rgb)) }
+                    palette.darkVibrantSwatch?.let { list.add(Color(it.rgb)) }
+                    palette.mutedSwatch?.let { list.add(Color(it.rgb)) }
+                    palette.darkMutedSwatch?.let { list.add(Color(it.rgb)) }
+                    palette.lightVibrantSwatch?.let { list.add(Color(it.rgb)) }
+                    
+                    if (list.size >= 2) {
+                        extractedColors = list
+                    }
+                } catch (e: Exception) {
+                    Log.e("PALETTE", "Error extracting colors", e)
+                }
+            }
+            
+            _dominantColors.value = extractedColors ?: getArtistPalette(song.artist)
         }
     }
 

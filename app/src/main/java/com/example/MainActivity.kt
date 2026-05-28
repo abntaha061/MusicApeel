@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.SubcomposeAsyncImage
+import com.example.presentation.components.AlbumArtImage
 import com.example.data.db.SongEntity
 import com.example.presentation.components.MiniPlayer
 import com.example.presentation.components.AuroraBackground
@@ -384,23 +384,13 @@ fun AppContent(
                                             .padding(12.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(48.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(Color.White.copy(alpha = 0.08f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            SubcomposeAsyncImage(
-                                                model = song.albumArtUri,
-                                                contentDescription = null,
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier.fillMaxSize(),
-                                                error = {
-                                                    Icon(Icons.Rounded.MusicNote, null, tint = Color.White.copy(0.4f))
-                                                }
-                                            )
-                                        }
+                                        AlbumArtImage(
+                                            songId = song.id,
+                                            filePath = song.filePath,
+                                            modifier = Modifier.size(48.dp),
+                                            cornerRadius = 8.dp,
+                                            iconSize = 22.dp
+                                        )
                                         Spacer(modifier = Modifier.width(16.dp))
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(song.title, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -516,21 +506,13 @@ fun AppContent(
                                             .padding(12.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(Color.White.copy(alpha = 0.08f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            SubcomposeAsyncImage(
-                                                model = song.albumArtUri,
-                                                contentDescription = null,
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier.fillMaxSize(),
-                                                error = { Icon(Icons.Rounded.MusicNote, null, tint = Color.White.copy(0.4f)) }
-                                            )
-                                        }
+                                        AlbumArtImage(
+                                            songId = song.id,
+                                            filePath = song.filePath,
+                                            modifier = Modifier.size(40.dp),
+                                            cornerRadius = 6.dp,
+                                            iconSize = 18.dp
+                                        )
                                         Spacer(modifier = Modifier.width(16.dp))
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(song.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)

@@ -25,7 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.SubcomposeAsyncImage
+import com.example.presentation.components.AlbumArtImage
 import com.example.data.db.ArtistStats
 import com.example.data.db.SongEntity
 
@@ -248,34 +248,20 @@ fun PlaylistItemCard(
             .width(120.dp)
             .clickable(onClick = onClick)
     ) {
-        // Frosted border premium cover
-        Box(
+        // Frosted border premium cover with customized AlbumArtImage
+        AlbumArtImage(
+            songId = song.id,
+            filePath = song.filePath,
             modifier = Modifier
                 .size(120.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color.White.copy(alpha = 0.08f))
                 .border(
                     width = 0.5.dp,
                     color = Color.White.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(14.dp)
                 ),
-            contentAlignment = Alignment.Center
-        ) {
-            SubcomposeAsyncImage(
-                model = song.albumArtUri,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                error = {
-                    Icon(
-                        imageVector = Icons.Rounded.MusicNote,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.4f),
-                        modifier = Modifier.size(38.dp)
-                    )
-                }
-            )
-        }
+            cornerRadius = 14.dp,
+            iconSize = 38.dp
+        )
         
         Spacer(modifier = Modifier.height(8.dp))
         
@@ -374,28 +360,13 @@ fun SongRowItem(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.White.copy(alpha = 0.08f)),
-            contentAlignment = Alignment.Center
-        ) {
-            SubcomposeAsyncImage(
-                model = song.albumArtUri,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                error = {
-                    Icon(
-                        imageVector = Icons.Rounded.MusicNote,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.4f),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            )
-        }
+        AlbumArtImage(
+            songId = song.id,
+            filePath = song.filePath,
+            modifier = Modifier.size(52.dp),
+            cornerRadius = 8.dp,
+            iconSize = 24.dp
+        )
 
         Spacer(modifier = Modifier.width(16.dp))
 
