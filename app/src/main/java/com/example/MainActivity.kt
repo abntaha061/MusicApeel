@@ -137,7 +137,7 @@ fun AppContent(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            homeViewModel.syncLibrary()
+            homeViewModel.checkAndStartLibrarySync()
         }
     }
 
@@ -148,7 +148,9 @@ fun AppContent(
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
 
-        if (ContextCompat.checkSelfPermission(context, permissionToCheck) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(context, permissionToCheck) == PackageManager.PERMISSION_GRANTED) {
+            homeViewModel.checkAndStartLibrarySync()
+        } else {
             permissionLauncher.launch(permissionToCheck)
         }
     }

@@ -54,8 +54,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = emptyList()
         )
 
-    init {
-        syncLibrary()
+    private var hasCheckedDatabase = false
+
+    fun checkAndStartLibrarySync() {
+        if (hasCheckedDatabase) return
+        hasCheckedDatabase = true
+        syncLibrary(force = false)
     }
 
     fun syncLibrary(force: Boolean = false) {

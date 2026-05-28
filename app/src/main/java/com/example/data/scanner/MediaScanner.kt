@@ -5,6 +5,9 @@ import android.media.MediaMetadataRetriever
 import android.util.Log
 import com.example.data.db.SongEntity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -29,15 +32,19 @@ class MediaScanner(private val context: Context) {
         } ?: return@withContext emptyList()
         
         // Parallel batch scanning utilizing coroutines for major speed up!
-        mp3Files.toList()
-            .chunked(25) // Process 25 files in parallel batches
-            .flatMap { batch ->
-                batch.mapNotNull { file ->
-                    try { extractSongData(file) }
-                    catch (e: Exception) { null }
+        coroutineScope {
+            mp3Files.toList()
+                .chunked(15) // Process 15 files in parallel batches concurrently in pool
+                .flatMap { batch ->
+                    batch.map { file ->
+                        async {
+                            try { extractSongData(file) }
+                            catch (e: Exception) { null }
+                        }
+                    }.awaitAll().filterNotNull()
                 }
-            }
-            .sortedBy { it.title }
+                .sortedBy { it.title }
+        }
     }
 
     fun scanSingleFile(filePath: String): SongEntity? {
