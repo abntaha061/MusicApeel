@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.lyrics.LrcLine
@@ -29,94 +31,96 @@ fun LyricsView(
     onLineClicked: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val lines = remember(lrcContent) { LrcParser.parseLrcFile(lrcContent) }
-    val currentLineIndex = remember(lines, currentPositionMs) {
-        LrcParser.getCurrentLineIndex(lines, currentPositionMs)
-    }
-
-    val listState = rememberLazyListState()
-
-    // Auto-scroll to current active line
-    LaunchedEffect(currentLineIndex, lines) {
-        if (currentLineIndex >= 0 && lines.isNotEmpty()) {
-            listState.animateScrollToItem(
-                index = maxOf(0, currentLineIndex - 2),
-                scrollOffset = 0
-            )
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        val lines = remember(lrcContent) { LrcParser.parseLrcFile(lrcContent) }
+        val currentLineIndex = remember(lines, currentPositionMs) {
+            LrcParser.getCurrentLineIndex(lines, currentPositionMs)
         }
-    }
 
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        if (lines.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "لا توجد كلمات متاحة",
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 18.sp,
-                    textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Medium
+        val listState = rememberLazyListState()
+
+        // Auto-scroll to current active line
+        LaunchedEffect(currentLineIndex, lines) {
+            if (currentLineIndex >= 0 && lines.isNotEmpty()) {
+                listState.animateScrollToItem(
+                    index = maxOf(0, currentLineIndex - 2),
+                    scrollOffset = 0
                 )
             }
-        } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 28.dp,   // More generous padding from the right for elegant look
-                    top = 40.dp,
-                    bottom = 120.dp
-                )
-            ) {
-                itemsIndexed(
-                    items = lines,
-                    key = { index, _ -> index }
-                ) { index, line ->
-                    val isActive = index == currentLineIndex
-                    val distance = abs(index - currentLineIndex)
+        }
 
-                    val textColor by animateColorAsState(
-                        targetValue = when {
-                            isActive -> Color.White
-                            distance == 1 -> Color.White.copy(alpha = 0.45f)
-                            distance == 2 -> Color.White.copy(alpha = 0.25f)
-                            else -> Color.White.copy(alpha = 0.15f)
-                        },
-                        animationSpec = tween(300),
-                        label = "lyric_color_$index"
-                    )
-
-                    val fontSize by animateFloatAsState(
-                        targetValue = if (isActive) 26f else 20f,
-                        animationSpec = tween(300),
-                        label = "lyric_size_$index"
-                    )
-
-                    val fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
-
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            if (lines.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = line.text,
-                        color = textColor,
-                        fontSize = fontSize.sp,
-                        fontWeight = fontWeight,
-                        textAlign = TextAlign.End, // Aligned to right as requested
-                        lineHeight = (fontSize * 1.5f).sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                onLineClicked(line.timestamp)
-                            }
+                        text = "لا توجد كلمات متاحة",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Medium
                     )
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 28.dp,  // RTL: right margin padding
+                        end = 16.dp,    // RTL: left margin padding
+                        top = 40.dp,
+                        bottom = 120.dp
+                    )
+                ) {
+                    itemsIndexed(
+                        items = lines,
+                        key = { index, _ -> index }
+                    ) { index, line ->
+                        val isActive = index == currentLineIndex
+                        val distance = abs(index - currentLineIndex)
+
+                        val textColor by animateColorAsState(
+                            targetValue = when {
+                                isActive -> Color.White
+                                distance == 1 -> Color.White.copy(alpha = 0.45f)
+                                distance == 2 -> Color.White.copy(alpha = 0.25f)
+                                else -> Color.White.copy(alpha = 0.15f)
+                            },
+                            animationSpec = tween(300),
+                            label = "lyric_color_$index"
+                        )
+
+                        val fontSize by animateFloatAsState(
+                            targetValue = if (isActive) 26f else 20f,
+                            animationSpec = tween(300),
+                            label = "lyric_size_$index"
+                        )
+
+                        val fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+
+                        Text(
+                            text = line.text,
+                            color = textColor,
+                            fontSize = fontSize.sp,
+                            fontWeight = fontWeight,
+                            textAlign = TextAlign.Start, // RTL: Start = Right
+                            lineHeight = (fontSize * 1.5f).sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    onLineClicked(line.timestamp)
+                                }
+                        )
+                    }
                 }
             }
         }

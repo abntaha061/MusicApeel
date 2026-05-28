@@ -8,10 +8,47 @@ data class ArtistStats(
     @ColumnInfo(name = "total_plays") val totalPlays: Int
 )
 
+data class ArtistWithArt(
+    val name: String,
+    val songCount: Int,
+    @ColumnInfo(name = "sampleFilePath") val sampleFilePath: String
+)
+
+data class LibraryStats(
+    val totalSongs: Int,
+    val totalDurationMs: Long,
+    val totalArtists: Int,
+    val totalAlbums: Int
+)
+
 @Dao
 interface SongDao {
     @Query("SELECT * FROM songs ORDER BY title ASC")
     fun getAllSongs(): Flow<List<SongEntity>>
+
+    @Query("""
+        SELECT artist as name, COUNT(*) as songCount, MIN(file_path) as sampleFilePath
+        FROM songs
+        GROUP BY artist
+        ORDER BY RANDOM()
+        LIMIT 10
+    """)
+    suspend fun getAllArtistsWithSongs(): List<ArtistWithArt>
+
+    @Query("SELECT COUNT(*) FROM songs")
+    suspend fun getTotalSongs(): Int
+
+    @Query("SELECT COALESCE(SUM(duration), 0) FROM songs")
+    suspend fun getTotalDuration(): Long
+
+    @Query("SELECT COUNT(DISTINCT artist) FROM songs")
+    suspend fun getTotalArtists(): Int
+
+    @Query("SELECT COUNT(DISTINCT album) FROM songs")
+    suspend fun getTotalAlbums(): Int
+
+    @Query("SELECT * FROM songs ORDER BY play_count DESC LIMIT 1")
+    fun getMostPlayedSong(): Flow<SongEntity?>
     
     @Query("SELECT * FROM songs WHERE play_count > 0 ORDER BY play_count DESC LIMIT 20")
     fun getMostPlayed(): Flow<List<SongEntity>>

@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import com.example.presentation.components.AlbumArtImage
 import com.example.data.db.ArtistStats
 import com.example.data.db.SongEntity
+import com.example.data.db.ArtistWithArt
+import com.example.data.db.LibraryStats
 
 @Composable
 fun HomeScreen(
@@ -41,6 +43,9 @@ fun HomeScreen(
     val mostPlayed by homeViewModel.mostPlayed.collectAsState()
     val topArtists by homeViewModel.topArtists.collectAsState()
     val isSyncing by homeViewModel.isSyncing.collectAsState()
+    val libraryStats by homeViewModel.libraryStats.collectAsState()
+    val artistsForYou by homeViewModel.artistsForYou.collectAsState()
+    val mostPlayedSong by homeViewModel.mostPlayedSong.collectAsState()
 
     val CairoBold = FontFamily.SansSerif // Fallback safe beautiful arabic typography
 
@@ -84,7 +89,7 @@ fun HomeScreen(
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.45f)),
                 contentPadding = PaddingValues(top = 24.dp, bottom = 160.dp),
-                verticalArrangement = Arrangement.spacedBy(28.dp)
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 // App header title
                 item {
@@ -107,7 +112,6 @@ fun HomeScreen(
                                 text = "عالمك الموسيقي الشخصي الكلاسيكي",
                                 color = Color.White.copy(alpha = 0.5f),
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.Normal,
                                 fontFamily = CairoBold
                             )
                         }
@@ -128,12 +132,56 @@ fun HomeScreen(
                     }
                 }
 
-                // Section A: "المشغلة مؤخراً" (Recently Played)
+                // 1. Library Stats Card
+                item {
+                    LibraryStatsCard(stats = libraryStats, fontFamily = CairoBold)
+                }
+
+                // 2. Most Played Song Card
+                mostPlayedSong?.let { song ->
+                    item {
+                        MostPlayedCard(
+                            song = song,
+                            onClick = { onSongSelected(listOf(song), 0) },
+                            fontFamily = CairoBold
+                        )
+                    }
+                }
+
+                // 3. Artists For You
+                if (artistsForYou.isNotEmpty()) {
+                    item {
+                        Column {
+                            Text(
+                                text = "فنانين من أجلك",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = CairoBold,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                            )
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                items(artistsForYou, key = { it.name }) { artist ->
+                                    ArtistForYouCard(
+                                        artist = artist,
+                                        onClick = { onArtistSelected(artist.name) },
+                                        fontFamily = CairoBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 4. Recently Played
                 if (recentlyPlayed.isNotEmpty()) {
                     item {
                         Column {
                             Text(
-                                text = "المشغلة مؤخراً",
+                                text = "تم تشغيلها مؤخراً",
                                 color = Color.White,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
@@ -145,7 +193,7 @@ fun HomeScreen(
                                 contentPadding = PaddingValues(horizontal = 20.dp),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                items(recentlyPlayed) { song ->
+                                items(recentlyPlayed, key = { it.id }) { song ->
                                     PlaylistItemCard(
                                         song = song,
                                         fontFamily = CairoBold,
@@ -160,7 +208,7 @@ fun HomeScreen(
                     }
                 }
 
-                // Section B: "الأكثر استماعاً" (Most Played)
+                // 5. Most Played list
                 if (mostPlayed.isNotEmpty()) {
                     item {
                         Column {
@@ -177,7 +225,7 @@ fun HomeScreen(
                                 contentPadding = PaddingValues(horizontal = 20.dp),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                items(mostPlayed) { song ->
+                                items(mostPlayed, key = { it.id }) { song ->
                                     PlaylistItemCard(
                                         song = song,
                                         fontFamily = CairoBold,
@@ -191,37 +239,6 @@ fun HomeScreen(
                         }
                     }
                 }
-
-                // Section C: "أبرز الفنانين" (Top Artists)
-                if (topArtists.isNotEmpty()) {
-                    item {
-                        Column {
-                            Text(
-                                text = "أبرز الفنانين",
-                                color = Color.White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = CairoBold,
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                            )
-                            
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 20.dp),
-                                horizontalArrangement = Arrangement.spacedBy(20.dp)
-                            ) {
-                                items(topArtists) { artist ->
-                                    ArtistCircleBlock(
-                                        artist = artist,
-                                        fontFamily = CairoBold,
-                                        onClick = { onArtistSelected(artist.artist) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-
             }
         }
 
@@ -439,3 +456,196 @@ fun formatDuration(ms: Long): String {
     val min = (ms / 60000)
     return String.format("%02d:%02d", min, sec)
 }
+
+@Composable
+fun LibraryStatsCard(stats: LibraryStats, fontFamily: FontFamily) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.White.copy(0.08f))
+            .border(0.5.dp, Color.White.copy(0.15f), RoundedCornerShape(20.dp))
+            .padding(20.dp),
+        horizontalAlignment = Alignment.End
+    ) {
+        // العنوان
+        Text(
+            "مكتبتك الموسيقية",
+            color = Color.White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = fontFamily
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        // المدة الإجمالية
+        Text(
+            formatTotalDuration(stats.totalDurationMs),
+            color = Color.White.copy(0.7f),
+            fontSize = 14.sp,
+            fontFamily = fontFamily
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // الإحصائيات في صف واحد مع فواصل
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StatItem(value = "${stats.totalSongs}", label = "أغنية", fontFamily = fontFamily)
+            StatDivider()
+            StatItem(value = "${stats.totalArtists}", label = "فنان", fontFamily = fontFamily)
+            StatDivider()
+            StatItem(value = "${stats.totalAlbums}", label = "ألبوم", fontFamily = fontFamily)
+        }
+    }
+}
+
+@Composable
+fun StatItem(value: String, label: String, fontFamily: FontFamily) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            value,
+            color = Color.White,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = fontFamily
+        )
+        Text(
+            label,
+            color = Color.White.copy(0.55f),
+            fontSize = 12.sp,
+            fontFamily = fontFamily
+        )
+    }
+}
+
+@Composable
+fun StatDivider() {
+    Box(
+        modifier = Modifier
+            .width(0.5.dp)
+            .height(32.dp)
+            .background(Color.White.copy(0.2f))
+    )
+}
+
+fun formatTotalDuration(ms: Long): String {
+    val totalMinutes = ms / 1000 / 60
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return "${hours}h ${minutes}m"
+}
+
+@Composable
+fun MostPlayedCard(song: SongEntity, onClick: () -> Unit, fontFamily: FontFamily) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color.White.copy(0.08f))
+            .border(0.5.dp, Color.White.copy(0.15f), RoundedCornerShape(18.dp))
+            .clickable { onClick() }
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.End
+    ) {
+        Column(
+            modifier = Modifier.weight(1f).padding(end = 12.dp),
+            horizontalAlignment = Alignment.End
+        ) {
+            Text(
+                "⭐ أكثر أغنية شغّلتها",
+                color = Color.White.copy(0.6f),
+                fontSize = 12.sp,
+                fontFamily = fontFamily
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                song.title,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = fontFamily,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                song.artist,
+                color = Color.White.copy(0.6f),
+                fontSize = 13.sp,
+                fontFamily = fontFamily,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "${song.playCount} مرة استماع",
+                color = Color(0xFF4CAF50),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = fontFamily
+            )
+        }
+
+        // صورة الألبوم
+        AlbumArtImage(
+            songId = song.id,
+            filePath = song.filePath,
+            modifier = Modifier.size(70.dp),
+            cornerRadius = 12.dp
+        )
+    }
+}
+
+@Composable
+fun ArtistForYouCard(artist: ArtistWithArt, onClick: () -> Unit, fontFamily: FontFamily) {
+    Column(
+        modifier = Modifier
+            .width(110.dp)
+            .clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(100.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(0.1f))
+        ) {
+            AlbumArtImage(
+                songId = artist.sampleFilePath.hashCode().toLong(),
+                filePath = artist.sampleFilePath,
+                modifier = Modifier.fillMaxSize(),
+                cornerRadius = 50.dp
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = artist.name,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            fontFamily = fontFamily,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "${artist.songCount} أغنية",
+            color = Color.White.copy(0.55f),
+            fontSize = 11.sp,
+            fontFamily = fontFamily,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+

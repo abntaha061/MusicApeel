@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.db.ArtistStats
+import com.example.data.db.ArtistWithArt
+import com.example.data.db.LibraryStats
 import com.example.data.db.SongDao
 import com.example.data.db.SongDatabase
 import com.example.data.db.SongEntity
@@ -14,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -53,6 +56,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    val libraryStats: StateFlow<LibraryStats> = allSongs.map {
+        LibraryStats(
+            totalSongs = songDao.getTotalSongs(),
+            totalDurationMs = songDao.getTotalDuration(),
+            totalArtists = songDao.getTotalArtists(),
+            totalAlbums = songDao.getTotalAlbums()
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LibraryStats(0, 0, 0, 0))
+
+    val artistsForYou: StateFlow<List<ArtistWithArt>> = allSongs.map {
+        val allArtists = songDao.getAllArtistsWithSongs()
+        allArtists.shuffled().take(5)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val mostPlayedSong: StateFlow<SongEntity?> = songDao.getMostPlayedSong()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private var hasCheckedDatabase = false
 

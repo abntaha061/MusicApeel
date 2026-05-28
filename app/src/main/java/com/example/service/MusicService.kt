@@ -55,7 +55,9 @@ class MusicService : Service() {
         
         // Initialize Database and Player
         songDao = SongDatabase.getDatabase(this).songDao()
-        player = ExoPlayer.Builder(this).build()
+        player = ExoPlayer.Builder(this).build().apply {
+            repeatMode = Player.REPEAT_MODE_ALL
+        }
         
         player.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -73,6 +75,21 @@ class MusicService : Service() {
                     startPositionTracker()
                 } else {
                     positionTrackerJob?.cancel()
+                }
+            }
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                val index = player.currentMediaItemIndex
+                val list = _playlist.value
+                if (index in list.indices) {
+                    val nextSong = list[index]
+                    if (_currentSong.value?.id != nextSong.id) {
+                        checkAndIncrementPlayCount()
+                        _currentSong.value = nextSong
+                        songStartTime = System.currentTimeMillis()
+                        currentSongId = nextSong.id
+                        currentSongDuration = nextSong.duration
+                    }
                 }
             }
         })
