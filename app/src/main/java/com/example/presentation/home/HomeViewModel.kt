@@ -70,11 +70,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val dbCount = songDao.getSongCount()
-                if (dbCount == 0 || force) {
-                    // Full sync on first-run or on a manual refresh/force
+                val isFirstScanDone = getApplication<Application>()
+                    .getSharedPreferences("music_prefs", android.content.Context.MODE_PRIVATE)
+                    .getBoolean("first_scan_done", false)
+
+                // Scan ONLY on:
+                // 1. Initial installation when DB is empty OR first scan flag is false
+                // 2. User manually triggers refresh (force == true)
+                if (dbCount == 0 || !isFirstScanDone || force) {
                     val scanned = mediaScanner.scanDevice()
                     
-                    // Retrieve existing library to preserve user interaction stats (play counts & timestamps)
+                    // Retrieve existing library to preserve user stats (play counts & timestamps)
                     val existingSongs = songDao.getSongList()
                     val existingMap = existingSongs.associateBy { it.id }
                     
@@ -93,10 +99,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     val paths = mergedSongs.map { it.filePath }
                     songDao.removeDeletedSongs(paths)
                     songDao.upsertSongs(mergedSongs)
-                    saveLastScanTime(System.currentTimeMillis())
+                    
+                    // Mark first scan as successfully completed
+                    getApplication<Application>()
+                        .getSharedPreferences("music_prefs", android.content.Context.MODE_PRIVATE)
+                        .edit()
+                        .putBoolean("first_scan_done", true)
+                        .putLong("last_scan_time", System.currentTimeMillis())
+                        .apply()
                 } else {
-                    // Quick and cheap incremental sync
-                    performIncrementalSync()
+                    // Under the "One-time Scan" architecture, automatic/incremental scans are completely skipped
+                    // to prevent CPU hogging, heating, and lag. No disk I/O operations are made!
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -105,44 +118,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 isSyncInProgress.set(false)
             }
         }
-    }
-
-    private suspend fun performIncrementalSync() {
-        val lastScanTime = getLastScanTime()
-        val now = System.currentTimeMillis()
-        
-        // Skip scan completely if 6 hours haven't elapsed yet
-        if (now - lastScanTime < 6 * 60 * 60 * 1000) {
-            return
-        }
-        
-        val musicDir = java.io.File(com.example.data.scanner.MusicConfig.MUSIC_DIR)
-        if (!musicDir.exists() || !musicDir.isDirectory) return
-        
-        val devicePaths = musicDir.listFiles { file ->
-            file.isFile && file.extension.lowercase() == "mp3"
-        }?.map { it.absolutePath }?.toSet() ?: emptySet()
-        
-        val dbPaths = songDao.getAllPaths().toSet()
-        
-        // 1. Instantly remove deleted path entities from DB
-        val deletedPaths = dbPaths - devicePaths
-        if (deletedPaths.isNotEmpty()) {
-            songDao.deleteByPaths(deletedPaths.toList())
-        }
-        
-        // 2. Scan and extract metadata for exclusively new files
-        val newPaths = devicePaths - dbPaths
-        if (newPaths.isNotEmpty()) {
-            val newSongs = newPaths.mapNotNull { path ->
-                mediaScanner.scanSingleFile(path)
-            }
-            if (newSongs.isNotEmpty()) {
-                songDao.upsertSongs(newSongs)
-            }
-        }
-        
-        saveLastScanTime(now)
     }
 
     private fun saveLastScanTime(time: Long) {
