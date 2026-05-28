@@ -44,195 +44,244 @@ fun HomeScreen(
 
     val CairoBold = FontFamily.SansSerif // Fallback safe beautiful arabic typography
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f)),
-        contentPadding = PaddingValues(top = 24.dp, bottom = 160.dp),
-        verticalArrangement = Arrangement.spacedBy(28.dp)
-    ) {
-        // App header title
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "طرب",
-                        color = Color.White,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = CairoBold
-                    )
-                    Text(
-                        text = "عالمك الموسيقي الشخصي الكلاسيكي",
-                        color = Color.White.copy(alpha = 0.5f),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = CairoBold
-                    )
-                }
-
-                IconButton(
-                    onClick = { homeViewModel.syncLibrary(force = true) },
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(Color.White.copy(alpha = 0.08f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Refresh,
-                        contentDescription = "مزامنة المكتبة",
-                        tint = if (isSyncing) Color(0xFF1E88E5) else Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-        }
-
-        // Section A: "المشغلة مؤخراً" (Recently Played)
-        if (recentlyPlayed.isNotEmpty()) {
-            item {
-                Column {
-                    Text(
-                        text = "المشغلة مؤخراً",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = CairoBold,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                    )
-                    
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(recentlyPlayed) { song ->
-                            PlaylistItemCard(
-                                song = song,
-                                fontFamily = CairoBold,
-                                onClick = {
-                                    val index = recentlyPlayed.indexOf(song)
-                                    onSongSelected(recentlyPlayed, index)
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Section B: "الأكثر استماعاً" (Most Played)
-        if (mostPlayed.isNotEmpty()) {
-            item {
-                Column {
-                    Text(
-                        text = "الأكثر استماعاً",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = CairoBold,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                    )
-                    
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(mostPlayed) { song ->
-                            PlaylistItemCard(
-                                song = song,
-                                fontFamily = CairoBold,
-                                onClick = {
-                                    val index = mostPlayed.indexOf(song)
-                                    onSongSelected(mostPlayed, index)
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Section C: "أبرز الفنانين" (Top Artists)
-        if (topArtists.isNotEmpty()) {
-            item {
-                Column {
-                    Text(
-                        text = "أبرز الفنانين",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = CairoBold,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                    )
-                    
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp)
-                    ) {
-                        items(topArtists) { artist ->
-                            ArtistCircleBlock(
-                                artist = artist,
-                                fontFamily = CairoBold,
-                                onClick = { onArtistSelected(artist.artist) }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Section D: "كل الأغاني" (All Songs)
-        item {
+    Box(modifier = modifier.fillMaxSize()) {
+        if (allSongs.isEmpty() && isSyncing) {
+            // Full-screen beautiful loader during the initial setup/scan
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.65f))
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                CircularProgressIndicator(
+                    color = Color(0xFF1E88E5),
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(54.dp)
+                )
+                Spacer(modifier = Modifier.height(20.dp))
                 Text(
-                    text = "مكتبتي الموسيقية",
+                    text = "جاري مسح ملفاتك الصوتية...",
                     color = Color.White,
-                    fontSize = 20.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = CairoBold,
-                    modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
+                    textAlign = TextAlign.Center
                 )
-
-                if (allSongs.isEmpty()) {
-                    Box(
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "نستخرج ميزات الأغاني وننظم مكتبتك التراثية بعناية هادئة",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 13.sp,
+                    fontFamily = CairoBold,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f)),
+                contentPadding = PaddingValues(top = 24.dp, bottom = 160.dp),
+                verticalArrangement = Arrangement.spacedBy(28.dp)
+            ) {
+                // App header title
+                item {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(180.dp)
-                            .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(16.dp)),
-                        contentAlignment = Alignment.Center
+                            .padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "لم يتم العثور على ملفات صوتية.\nاضغط مزامنة بالأعلى لبدء التشغيل.",
-                            color = Color.White.copy(alpha = 0.5f),
-                            textAlign = TextAlign.Center,
-                            fontFamily = CairoBold,
-                            fontSize = 14.sp
-                        )
-                    }
-                } else {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        allSongs.forEachIndexed { index, song ->
-                            SongRowItem(
-                                song = song,
-                                index = index,
-                                fontFamily = CairoBold,
-                                onClick = { onSongSelected(allSongs, index) }
+                        Column {
+                            Text(
+                                text = "طرب",
+                                color = Color.White,
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontFamily = CairoBold
+                            )
+                            Text(
+                                text = "عالمك الموسيقي الشخصي الكلاسيكي",
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Normal,
+                                fontFamily = CairoBold
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { homeViewModel.syncLibrary(force = true) },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(Color.White.copy(alpha = 0.08f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Refresh,
+                                contentDescription = "مزامنة المكتبة",
+                                tint = if (isSyncing) Color(0xFF1E88E5) else Color.White,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
                 }
+
+                // Section A: "المشغلة مؤخراً" (Recently Played)
+                if (recentlyPlayed.isNotEmpty()) {
+                    item {
+                        Column {
+                            Text(
+                                text = "المشغلة مؤخراً",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = CairoBold,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                            )
+                            
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(recentlyPlayed) { song ->
+                                    PlaylistItemCard(
+                                        song = song,
+                                        fontFamily = CairoBold,
+                                        onClick = {
+                                            val index = recentlyPlayed.indexOf(song)
+                                            onSongSelected(recentlyPlayed, index)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Section B: "الأكثر استماعاً" (Most Played)
+                if (mostPlayed.isNotEmpty()) {
+                    item {
+                        Column {
+                            Text(
+                                text = "الأكثر استماعاً",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = CairoBold,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                            )
+                            
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(mostPlayed) { song ->
+                                    PlaylistItemCard(
+                                        song = song,
+                                        fontFamily = CairoBold,
+                                        onClick = {
+                                            val index = mostPlayed.indexOf(song)
+                                            onSongSelected(mostPlayed, index)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Section C: "أبرز الفنانين" (Top Artists)
+                if (topArtists.isNotEmpty()) {
+                    item {
+                        Column {
+                            Text(
+                                text = "أبرز الفنانين",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = CairoBold,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                            )
+                            
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(20.dp)
+                            ) {
+                                items(topArtists) { artist ->
+                                    ArtistCircleBlock(
+                                        artist = artist,
+                                        fontFamily = CairoBold,
+                                        onClick = { onArtistSelected(artist.artist) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Section D: "كل الأغاني" (All Songs)
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                    ) {
+                        Text(
+                            text = "مكتبتي الموسيقية",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = CairoBold,
+                            modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
+                        )
+
+                        if (allSongs.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(16.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "لم يتم العثور على ملفات صوتية.\nاضغط على زر التحديث بالأعلى لمسح أغانيك المتاحة.",
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    textAlign = TextAlign.Center,
+                                    fontFamily = CairoBold,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        } else {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                allSongs.forEachIndexed { index, song ->
+                                    SongRowItem(
+                                        song = song,
+                                        index = index,
+                                        fontFamily = CairoBold,
+                                        onClick = { onSongSelected(allSongs, index) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
+        }
+
+        // Horizontal subtle progress indicator for background scans when catalog is not empty
+        if (isSyncing && allSongs.isNotEmpty()) {
+            LinearProgressIndicator(
+                color = Color(0xFF1E88E5),
+                trackColor = Color.Transparent,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .height(3.dp)
+            )
         }
     }
 }

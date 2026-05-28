@@ -42,6 +42,9 @@ interface SongDao {
     @Upsert
     suspend fun upsertSongs(songs: List<SongEntity>)
 
+    @Query("SELECT * FROM songs")
+    suspend fun getSongList(): List<SongEntity>
+
     @Query("SELECT COUNT(*) FROM songs")
     suspend fun getSongCount(): Int
 

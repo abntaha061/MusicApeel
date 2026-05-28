@@ -21,6 +21,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val songDao: SongDao = SongDatabase.getDatabase(application).songDao()
     private val mediaScanner = MediaScanner(application)
 
+    private val isSyncInProgress = java.util.concurrent.atomic.AtomicBoolean(false)
+
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
@@ -57,16 +59,36 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun syncLibrary(force: Boolean = false) {
+        if (isSyncInProgress.getAndSet(true)) {
+            return // Already syncing. Skip duplicate scan to prevent CPU spikes and freezing.
+        }
+        _isSyncing.value = true
         viewModelScope.launch(Dispatchers.IO) {
-            _isSyncing.value = true
             try {
                 val dbCount = songDao.getSongCount()
                 if (dbCount == 0 || force) {
                     // Full sync on first-run or on a manual refresh/force
                     val scanned = mediaScanner.scanDevice()
-                    val paths = scanned.map { it.filePath }
+                    
+                    // Retrieve existing library to preserve user interaction stats (play counts & timestamps)
+                    val existingSongs = songDao.getSongList()
+                    val existingMap = existingSongs.associateBy { it.id }
+                    
+                    val mergedSongs = scanned.map { scannedSong ->
+                        val existing = existingMap[scannedSong.id]
+                        if (existing != null) {
+                            scannedSong.copy(
+                                playCount = existing.playCount,
+                                lastPlayedTimestamp = existing.lastPlayedTimestamp
+                            )
+                        } else {
+                            scannedSong
+                        }
+                    }
+                    
+                    val paths = mergedSongs.map { it.filePath }
                     songDao.removeDeletedSongs(paths)
-                    songDao.upsertSongs(scanned)
+                    songDao.upsertSongs(mergedSongs)
                     saveLastScanTime(System.currentTimeMillis())
                 } else {
                     // Quick and cheap incremental sync
@@ -76,6 +98,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 e.printStackTrace()
             } finally {
                 _isSyncing.value = false
+                isSyncInProgress.set(false)
             }
         }
     }
