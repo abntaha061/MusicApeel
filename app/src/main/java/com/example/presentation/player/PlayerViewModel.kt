@@ -59,16 +59,25 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             if (bitmap != null) {
                 try {
                     val palette = Palette.from(bitmap).generate()
-                    val list = mutableListOf<Color>()
-                    palette.vibrantSwatch?.let { list.add(Color(it.rgb)) }
-                    palette.darkVibrantSwatch?.let { list.add(Color(it.rgb)) }
-                    palette.mutedSwatch?.let { list.add(Color(it.rgb)) }
-                    palette.darkMutedSwatch?.let { list.add(Color(it.rgb)) }
-                    palette.lightVibrantSwatch?.let { list.add(Color(it.rgb)) }
-                    
-                    if (list.size >= 2) {
-                        extractedColors = list
-                    }
+                    val color1 = palette.vibrantSwatch?.rgb
+                        ?: palette.lightVibrantSwatch?.rgb
+                        ?: palette.dominantSwatch?.rgb
+                        ?: 0xFF6200EE.toInt()
+
+                    val color2 = palette.mutedSwatch?.rgb
+                        ?: palette.darkVibrantSwatch?.rgb
+                        ?: palette.dominantSwatch?.rgb
+                        ?: 0xFF03DAC6.toInt()
+
+                    val color3 = palette.lightMutedSwatch?.rgb
+                        ?: palette.darkMutedSwatch?.rgb
+                        ?: 0xFF018786.toInt()
+
+                    extractedColors = listOf(
+                        Color(color1),
+                        Color(color2),
+                        Color(color3)
+                    )
                 } catch (e: Exception) {
                     Log.e("PALETTE", "Error extracting colors", e)
                 }

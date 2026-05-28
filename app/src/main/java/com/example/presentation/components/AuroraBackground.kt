@@ -26,78 +26,29 @@ fun AuroraBackground(
         if (dominantColors.size >= 3) {
             dominantColors
         } else if (dominantColors.size == 2) {
-            dominantColors + listOf(Color(0xFF004D40))
+            dominantColors + listOf(Color(0xFF018786))
         } else if (dominantColors.size == 1) {
-            dominantColors + listOf(Color(0xFF6A1B9A), Color(0xFF004D40))
+            dominantColors + listOf(Color(0xFF03DAC6), Color(0xFF018786))
         } else {
             listOf(
-                Color(0xFF1565C0), // Rich Blue
-                Color(0xFF6A1B9A), // Cosmic Purple
-                Color(0xFF00695C)  // Emerald Teal
+                Color(0xFF6200EE), // Vibrant Purple
+                Color(0xFF03DAC6), // Teal
+                Color(0xFF018786)  // Muted green-teal
             )
         }
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "aurora")
 
-    // Blob 1 - moves horizontally and vertically speed cycle 5000ms
-    val blob1X by infiniteTransition.animateFloat(
-        initialValue = -0.2f,
-        targetValue = 1.1f,
+    // Slow, fluid animation
+    val offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(5000, easing = FastOutSlowInEasing),
+            animation = tween(8000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "b1x"
-    )
-    val blob1Y by infiniteTransition.animateFloat(
-        initialValue = 0.0f,
-        targetValue = 0.5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(5000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "b1y"
-    )
-
-    // Blob 2 - moves opposite of blob 1 speed cycle 5000ms
-    val blob2X by infiniteTransition.animateFloat(
-        initialValue = 1.2f,
-        targetValue = -0.1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(5000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "b2x"
-    )
-    val blob2Y by infiniteTransition.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 0.1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(5000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "b2y"
-    )
-
-    // Blob 3 - moves diagonally speed cycle 5000ms
-    val blob3X by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(5000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "b3x"
-    )
-    val blob3Y by infiniteTransition.animateFloat(
-        initialValue = 0.9f,
-        targetValue = 0.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(5000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "b3y"
+        label = "aurora_offset"
     )
 
     val color1 = safeColors[0]
@@ -109,96 +60,76 @@ fun AuroraBackground(
     val animatedColor2 by animateColorAsState(targetValue = color2, animationSpec = tween(1500), label = "c2")
     val animatedColor3 by animateColorAsState(targetValue = color3, animationSpec = tween(1800), label = "c3")
 
-    Box(modifier = modifier) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    // Hardware accelerated GPU blur on Android S+ (API 31+)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        try {
-                            renderEffect = BlurEffect(120f, 120f, TileMode.Clamp)
-                        } catch (t: Throwable) {
-                            t.printStackTrace()
-                        }
-                    }
-                }
-        ) {
-            // Dark base luxury background underlay
-            drawRect(Color(0xFF060606))
+    Canvas(modifier = modifier.fillMaxSize()) {
+        val width = size.width
+        val height = size.height
 
-            // Blob 1 drawing - Elongated Oval, covering a huge area
-            drawOval(
-                brush = Brush.radialGradient(
-                    colorStops = arrayOf(
-                        0.0f to animatedColor1.copy(alpha = 0.85f),
-                        0.3f to animatedColor1.copy(alpha = 0.55f),
-                        0.6f to animatedColor1.copy(alpha = 0.25f),
-                        1.0f to Color.Transparent
-                    ),
-                    center = Offset(size.width * blob1X, size.height * blob1Y),
-                    radius = size.width * 0.9f
+        // Dark base luxury background underlay
+        drawRect(Color.Black)
+
+        // Spot 1 - Top-Right - Strong Alpha for vivid color
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    animatedColor1.copy(alpha = 0.75f),
+                    animatedColor1.copy(alpha = 0.35f),
+                    Color.Transparent
                 ),
-                topLeft = Offset(
-                    size.width * blob1X - size.width * 0.9f,
-                    size.height * blob1Y - size.height * 0.45f
+                center = Offset(
+                    x = width * (0.75f + offset * 0.2f),
+                    y = height * (0.15f + offset * 0.1f)
                 ),
-                size = Size(size.width * 1.8f, size.height * 0.9f)
+                radius = width * 0.85f
+            ),
+            radius = width * 0.85f,
+            center = Offset(
+                x = width * (0.75f + offset * 0.2f),
+                y = height * (0.15f + offset * 0.1f)
+                )
+        )
+
+        // Spot 2 - Bottom-Left
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    animatedColor2.copy(alpha = 0.65f),
+                    animatedColor2.copy(alpha = 0.30f),
+                    Color.Transparent
+                ),
+                center = Offset(
+                    x = width * (0.20f - offset * 0.15f),
+                    y = height * (0.75f - offset * 0.1f)
+                ),
+                radius = width * 0.80f
+            ),
+            radius = width * 0.80f,
+            center = Offset(
+                x = width * (0.20f - offset * 0.15f),
+                y = height * (0.75f - offset * 0.1f)
             )
+        )
 
-            // Blob 2 drawing
-            drawOval(
-                brush = Brush.radialGradient(
-                    colorStops = arrayOf(
-                        0.0f to animatedColor2.copy(alpha = 0.80f),
-                        0.3f to animatedColor2.copy(alpha = 0.50f),
-                        0.6f to animatedColor2.copy(alpha = 0.20f),
-                        1.0f to Color.Transparent
-                    ),
-                    center = Offset(size.width * blob2X, size.height * blob2Y),
-                    radius = size.width * 0.85f
+        // Spot 3 - Center
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    animatedColor3.copy(alpha = 0.45f),
+                    Color.Transparent
                 ),
-                topLeft = Offset(
-                    size.width * blob2X - size.width * 0.85f,
-                    size.height * blob2Y - size.height * 0.50f
+                center = Offset(
+                    x = width * 0.5f,
+                    y = height * (0.5f + offset * 0.15f)
                 ),
-                size = Size(size.width * 1.7f, size.height * 1.0f)
+                radius = width * 0.60f
+            ),
+            radius = width * 0.60f,
+            center = Offset(
+                x = width * 0.5f,
+                y = height * (0.5f + offset * 0.15f)
             )
+        )
 
-            // Blob 3 drawing
-            drawOval(
-                brush = Brush.radialGradient(
-                    colorStops = arrayOf(
-                        0.0f to animatedColor3.copy(alpha = 0.70f),
-                        0.4f to animatedColor3.copy(alpha = 0.35f),
-                        1.0f to Color.Transparent
-                    ),
-                    center = Offset(size.width * blob3X, size.height * blob3Y),
-                    radius = size.width * 0.70f
-                ),
-                topLeft = Offset(
-                    size.width * blob3X - size.width * 0.70f,
-                    size.height * blob3Y - size.height * 0.40f
-                ),
-                size = Size(size.width * 1.4f, size.height * 0.80f)
-            )
-
-            // Center subtle ambient glow
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colorStops = arrayOf(
-                        0.0f to Color.White.copy(alpha = 0.06f),
-                        1.0f to Color.Transparent
-                    ),
-                    center = Offset(size.width * 0.5f, size.height * 0.5f),
-                    radius = size.width * 0.5f
-                ),
-                radius = size.width * 0.5f,
-                center = Offset(size.width * 0.5f, size.height * 0.5f)
-            )
-
-            // Scrim to maintain content readability (text contrast)
-            drawRect(Color.Black.copy(alpha = 0.20f))
-        }
+        // Light scrim to ensure text / lyrics are perfectly readable
+        drawRect(Color.Black.copy(alpha = 0.30f))
     }
 }
