@@ -56,24 +56,77 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         syncLibrary()
     }
 
-    fun syncLibrary() {
+    fun syncLibrary(force: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             _isSyncing.value = true
             try {
-                // 1. Scan external storage/assets
-                val scanned = mediaScanner.scanDevice()
-                val paths = scanned.map { it.filePath }
-                
-                // 2. Remove deleted files
-                songDao.removeDeletedSongs(paths)
-                
-                // 3. Sync library insert
-                songDao.upsertSongs(scanned)
+                val dbCount = songDao.getSongCount()
+                if (dbCount == 0 || force) {
+                    // Full sync on first-run or on a manual refresh/force
+                    val scanned = mediaScanner.scanDevice()
+                    val paths = scanned.map { it.filePath }
+                    songDao.removeDeletedSongs(paths)
+                    songDao.upsertSongs(scanned)
+                    saveLastScanTime(System.currentTimeMillis())
+                } else {
+                    // Quick and cheap incremental sync
+                    performIncrementalSync()
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
                 _isSyncing.value = false
             }
         }
+    }
+
+    private suspend fun performIncrementalSync() {
+        val lastScanTime = getLastScanTime()
+        val now = System.currentTimeMillis()
+        
+        // Skip scan completely if 6 hours haven't elapsed yet
+        if (now - lastScanTime < 6 * 60 * 60 * 1000) {
+            return
+        }
+        
+        val musicDir = java.io.File(com.example.data.scanner.MusicConfig.MUSIC_DIR)
+        if (!musicDir.exists() || !musicDir.isDirectory) return
+        
+        val devicePaths = musicDir.listFiles { file ->
+            file.isFile && file.extension.lowercase() == "mp3"
+        }?.map { it.absolutePath }?.toSet() ?: emptySet()
+        
+        val dbPaths = songDao.getAllPaths().toSet()
+        
+        // 1. Instantly remove deleted path entities from DB
+        val deletedPaths = dbPaths - devicePaths
+        if (deletedPaths.isNotEmpty()) {
+            songDao.deleteByPaths(deletedPaths.toList())
+        }
+        
+        // 2. Scan and extract metadata for exclusively new files
+        val newPaths = devicePaths - dbPaths
+        if (newPaths.isNotEmpty()) {
+            val newSongs = newPaths.mapNotNull { path ->
+                mediaScanner.scanSingleFile(path)
+            }
+            if (newSongs.isNotEmpty()) {
+                songDao.upsertSongs(newSongs)
+            }
+        }
+        
+        saveLastScanTime(now)
+    }
+
+    private fun saveLastScanTime(time: Long) {
+        getApplication<Application>().getSharedPreferences("music_prefs", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putLong("last_scan_time", time)
+            .apply()
+    }
+
+    private fun getLastScanTime(): Long {
+        return getApplication<Application>().getSharedPreferences("music_prefs", android.content.Context.MODE_PRIVATE)
+            .getLong("last_scan_time", 0L)
     }
 }

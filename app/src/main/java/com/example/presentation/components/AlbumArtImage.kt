@@ -36,9 +36,7 @@ fun AlbumArtImage(
     
     LaunchedEffect(songId, filePath) {
         isLoading = true
-        bitmap = withContext(Dispatchers.IO) {
-            AlbumArtLoader.loadBitmap(songId, filePath)
-        }
+        bitmap = AlbumArtLoader.getOrLoad(songId, filePath)
         isLoading = false
     }
     

@@ -23,53 +23,59 @@ class MediaScanner(private val context: Context) {
             return@withContext emptyList()
         }
         
-        val songs = mutableListOf<SongEntity>()
-        
         // Get all MP3 files ONLY from this directory (non-recursive)
         val mp3Files = musicDir.listFiles { file ->
             file.isFile && file.extension.lowercase() == "mp3"
         } ?: return@withContext emptyList()
         
-        mp3Files.forEach { mp3File ->
+        // Parallel batch scanning utilizing coroutines for major speed up!
+        mp3Files.toList()
+            .chunked(25) // Process 25 files in parallel batches
+            .flatMap { batch ->
+                batch.mapNotNull { file ->
+                    try { extractSongData(file) }
+                    catch (e: Exception) { null }
+                }
+            }
+            .sortedBy { it.title }
+    }
+
+    fun scanSingleFile(filePath: String): SongEntity? {
+        return try {
+            extractSongData(File(filePath))
+        } catch (e: Exception) { null }
+    }
+
+    private fun extractSongData(file: File): SongEntity? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(file.absolutePath)
+            
+            val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            val duration = durationStr?.toLongOrNull() ?: 0L
+            
+            // Only add songs longer than 30 seconds
+            if (duration < 30_000L) return null
+            
+            SongEntity(
+                id = file.absolutePath.hashCode().toLong(),
+                title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+                    ?: file.nameWithoutExtension,
+                artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                    ?: "فنان غير معروف",
+                album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+                    ?: "ألبوم غير معروف",
+                duration = duration,
+                filePath = file.absolutePath,
+                albumArtUri = null // Will be loaded dynamically on-demand
+            )
+        } finally {
             try {
-                val retriever = MediaMetadataRetriever()
-                retriever.setDataSource(mp3File.absolutePath)
-                
-                val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
-                    ?: mp3File.nameWithoutExtension
-                val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-                    ?: "فنان غير معروف"
-                val album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
-                    ?: "ألبوم غير معروف"
-                val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                val duration = durationStr?.toLongOrNull() ?: 0L
-                
-                try {
-                    retriever.release()
-                } catch (e: Exception) {
-                    // Ignore release errors
-                }
-                
-                // Only add songs longer than 30 seconds
-                if (duration > 30_000L) {
-                    songs.add(
-                        SongEntity(
-                            id = mp3File.absolutePath.hashCode().toLong(),
-                            title = title,
-                            artist = artist,
-                            album = album,
-                            duration = duration,
-                            filePath = mp3File.absolutePath,
-                            albumArtUri = null // Will be loaded on-demand
-                        )
-                    )
-                }
+                retriever.release()
             } catch (e: Exception) {
-                e.printStackTrace() // Skip corrupt files, never crash
+                // Ignore release errors
             }
         }
-        
-        songs.sortedBy { it.title }
     }
 
     companion object {

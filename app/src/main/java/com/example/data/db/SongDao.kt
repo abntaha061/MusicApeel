@@ -44,4 +44,10 @@ interface SongDao {
 
     @Query("SELECT COUNT(*) FROM songs")
     suspend fun getSongCount(): Int
+
+    @Query("SELECT file_path FROM songs")
+    suspend fun getAllPaths(): List<String>
+
+    @Query("DELETE FROM songs WHERE file_path IN (:paths)")
+    suspend fun deleteByPaths(paths: List<String>)
 }

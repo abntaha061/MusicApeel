@@ -78,7 +78,7 @@ fun HomeScreen(
                 }
 
                 IconButton(
-                    onClick = { homeViewModel.syncLibrary() },
+                    onClick = { homeViewModel.syncLibrary(force = true) },
                     modifier = Modifier
                         .size(44.dp)
                         .background(Color.White.copy(alpha = 0.08f), CircleShape)
