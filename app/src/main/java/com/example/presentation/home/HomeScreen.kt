@@ -221,54 +221,7 @@ fun HomeScreen(
                     }
                 }
 
-                // Section D: "كل الأغاني" (All Songs)
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp)
-                    ) {
-                        Text(
-                            text = "مكتبتي الموسيقية",
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = CairoBold,
-                            modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
-                        )
 
-                        if (allSongs.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(180.dp)
-                                    .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(16.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "لم يتم العثور على ملفات صوتية.\nاضغط على زر التحديث بالأعلى لمسح أغانيك المتاحة.",
-                                    color = Color.White.copy(alpha = 0.5f),
-                                    textAlign = TextAlign.Center,
-                                    fontFamily = CairoBold,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        } else {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                allSongs.forEachIndexed { index, song ->
-                                    SongRowItem(
-                                        song = song,
-                                        index = index,
-                                        fontFamily = CairoBold,
-                                        onClick = { onSongSelected(allSongs, index) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
 

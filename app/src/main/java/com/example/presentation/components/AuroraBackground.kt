@@ -40,12 +40,12 @@ fun AuroraBackground(
 
     val infiniteTransition = rememberInfiniteTransition(label = "aurora")
 
-    // Blob 1 - moves horizontally and vertically very slowly (28s / 22s)
+    // Blob 1 - moves horizontally and vertically speed cycle 5000ms
     val blob1X by infiniteTransition.animateFloat(
         initialValue = -0.2f,
         targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(28000, easing = FastOutSlowInEasing),
+            animation = tween(5000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "b1x"
@@ -54,18 +54,18 @@ fun AuroraBackground(
         initialValue = 0.0f,
         targetValue = 0.5f,
         animationSpec = infiniteRepeatable(
-            animation = tween(22000, easing = LinearEasing),
+            animation = tween(5000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "b1y"
     )
 
-    // Blob 2 - moves opposite of blob 1 very slowly (32s / 25s)
+    // Blob 2 - moves opposite of blob 1 speed cycle 5000ms
     val blob2X by infiniteTransition.animateFloat(
         initialValue = 1.2f,
         targetValue = -0.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(32000, easing = FastOutSlowInEasing),
+            animation = tween(5000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "b2x"
@@ -74,18 +74,18 @@ fun AuroraBackground(
         initialValue = 0.6f,
         targetValue = 0.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(25000, easing = LinearEasing),
+            animation = tween(5000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "b2y"
     )
 
-    // Blob 3 - moves diagonally very slowly (20s / 26s)
+    // Blob 3 - moves diagonally speed cycle 5000ms
     val blob3X by infiniteTransition.animateFloat(
         initialValue = 0.2f,
         targetValue = 0.8f,
         animationSpec = infiniteRepeatable(
-            animation = tween(20000, easing = FastOutSlowInEasing),
+            animation = tween(5000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "b3x"
@@ -94,7 +94,7 @@ fun AuroraBackground(
         initialValue = 0.9f,
         targetValue = 0.2f,
         animationSpec = infiniteRepeatable(
-            animation = tween(26000, easing = FastOutSlowInEasing),
+            animation = tween(5000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "b3y"

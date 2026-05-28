@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -125,6 +126,7 @@ fun AppContent(
 
     var selectedTab by remember { mutableStateOf("home") }
     var isPlayerExpanded by remember { mutableStateOf(false) }
+    var showAllSongsScreen by remember { mutableStateOf(false) }
 
     // Search view states
     var searchQuery by remember { mutableStateOf("") }
@@ -161,6 +163,8 @@ fun AppContent(
     BackHandler(enabled = true) {
         if (isPlayerExpanded) {
             isPlayerExpanded = false
+        } else if (showAllSongsScreen) {
+            showAllSongsScreen = false
         } else {
             when (selectedTab) {
                 "search", "library" -> {
@@ -344,7 +348,7 @@ fun AppContent(
 
                         val filteredSongs = remember(allSongs, searchQuery) {
                             if (searchQuery.isBlank()) {
-                                allSongs
+                                emptyList()
                             } else {
                                 allSongs.filter {
                                     it.title.contains(searchQuery, ignoreCase = true) ||
@@ -354,7 +358,31 @@ fun AppContent(
                             }
                         }
 
-                        if (filteredSongs.isEmpty()) {
+                        if (searchQuery.isBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        Icons.Rounded.Search,
+                                        null,
+                                        tint = Color.White.copy(alpha = 0.3f),
+                                        modifier = Modifier.size(56.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "ابحث عن أي أغنية",
+                                        color = Color.White.copy(alpha = 0.4f),
+                                        fontFamily = CairoBold,
+                                        fontSize = 16.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        } else if (filteredSongs.isEmpty()) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -362,7 +390,7 @@ fun AppContent(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "لم نجد نتائج مطابقة لبحثك",
+                                    text = "لا توجد نتائج لـ \"$searchQuery\"",
                                     color = Color.White.copy(alpha = 0.4f),
                                     fontFamily = CairoBold,
                                     fontSize = 15.sp,
@@ -407,125 +435,193 @@ fun AppContent(
                 }
 
                 "library" -> {
-                    // Fully implemented Statistics and Performance Library
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.45f))
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(24.dp)
-                    ) {
-                        item {
-                            Text(
-                                text = "إحصائيات استماعي",
-                                color = Color.White,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = CairoBold,
-                                modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
-                            )
-                            Text(
-                                text = "ترتيب وذكاء استخدام ذوقك الموسيقي",
-                                color = Color.White.copy(alpha = 0.5f),
-                                fontSize = 13.sp,
-                                fontFamily = CairoBold
-                            )
-                        }
-
-                        // Summary Statistics Cards (Row)
-                        item {
+                    if (showAllSongsScreen) {
+                        // All Songs Sub-screen with back button and high quality responsive list
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.45f))
+                        ) {
+                            // Header with beautiful back button and count
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(Color.White.copy(alpha = 0.03f))
-                                        .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                                        .padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Icon(Icons.Rounded.LibraryMusic, null, tint = Color(0xFF1E88E5), modifier = Modifier.size(32.dp))
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text("${allSongs.size} أغنية", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = CairoBold)
-                                    Text("بالمكتبة", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp, fontFamily = CairoBold)
-                                }
+                                Text(
+                                    text = "${allSongs.size} أغنية",
+                                    color = Color.White,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = CairoBold
+                                )
 
-                                Column(
+                                IconButton(
+                                    onClick = { showAllSongsScreen = false },
                                     modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(Color.White.copy(alpha = 0.03f))
-                                        .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                                        .padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(0.1f))
                                 ) {
-                                    Icon(Icons.Rounded.Equalizer, null, tint = Color(0xFFD81B60), modifier = Modifier.size(32.dp))
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    val totalPlays = allSongs.sumOf { it.playCount }
-                                    Text("$totalPlays مرة", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = CairoBold)
-                                    Text("إجمالي الاستماع", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp, fontFamily = CairoBold)
+                                    Icon(
+                                        imageVector = Icons.Rounded.ArrowBack,
+                                        contentDescription = "رجوع",
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+
+                            if (allSongs.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "المكتبة فارغة",
+                                        color = Color.White.copy(0.4f),
+                                        fontFamily = CairoBold
+                                    )
+                                }
+                            } else {
+                                LazyColumn(
+                                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 160.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    itemsIndexed(allSongs) { index, song ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(Color.White.copy(alpha = 0.03f))
+                                                .clickable {
+                                                    musicService?.playSongList(allSongs, index)
+                                                }
+                                                .padding(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            AlbumArtImage(
+                                                songId = song.id,
+                                                filePath = song.filePath,
+                                                modifier = Modifier.size(48.dp),
+                                                cornerRadius = 8.dp,
+                                                iconSize = 22.dp
+                                            )
+                                            Spacer(modifier = Modifier.width(16.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = song.title,
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    text = song.artist,
+                                                    color = Color.White.copy(alpha = 0.5f),
+                                                    fontSize = 12.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            Text(
+                                                text = formatDuration(song.duration),
+                                                color = Color.White.copy(alpha = 0.4f),
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
+                    } else {
+                        // Standard Library Stats view (NO automatic list loaded)
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.45f))
+                                .padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(24.dp)
+                        ) {
+                            item {
+                                Text(
+                                    text = "إحصائيات استماعي",
+                                    color = Color.White,
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = CairoBold,
+                                    modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                                )
+                                Text(
+                                    text = "ترتيب وذكاء استخدام ذوقك الموسيقي",
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    fontSize = 13.sp,
+                                    fontFamily = CairoBold
+                                )
+                            }
 
-                        item {
-                            Text(
-                                text = "تسجيل التفاعل الأخير",
-                                color = Color.White,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = CairoBold
-                            )
-                        }
-
-                        if (allSongs.isEmpty()) {
+                            // ── بطاقة العداد — "585 أغنية" ──
                             item {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(160.dp),
-                                    contentAlignment = Alignment.Center
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(Color.White.copy(0.10f))
+                                        .border(0.5.dp, Color.White.copy(0.2f), RoundedCornerShape(18.dp))
+                                        .clickable { showAllSongsScreen = true }
+                                        .padding(20.dp)
                                 ) {
-                                    Text("لا توجد إحصائيات كافية", color = Color.White.copy(0.4f), fontFamily = CairoBold)
-                                }
-                            }
-                        } else {
-                            val sortedByPlayed = allSongs.sortedByDescending { it.lastPlayedTimestamp }.filter { it.lastPlayedTimestamp > 0 }
-                            if (sortedByPlayed.isEmpty()) {
-                                item {
-                                    Text("ابدأ بتشغيل الأغاني لتسجيل تواريخ الاستماع وسلوكك المفضل.", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp, fontFamily = CairoBold)
-                                }
-                            } else {
-                                itemsIndexed(sortedByPlayed.take(5)) { _, song ->
                                     Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(Color.White.copy(alpha = 0.02f))
-                                            .padding(12.dp),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        AlbumArtImage(
-                                            songId = song.id,
-                                            filePath = song.filePath,
-                                            modifier = Modifier.size(40.dp),
-                                            cornerRadius = 6.dp,
-                                            iconSize = 18.dp
+                                        Icon(
+                                            imageVector = Icons.Rounded.ChevronLeft,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(0.5f)
                                         )
-                                        Spacer(modifier = Modifier.width(16.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(song.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                            Text(song.artist, color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                text = "${allSongs.size} أغنية",
+                                                color = Color.White,
+                                                fontSize = 22.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = CairoBold
+                                            )
+                                            Text(
+                                                text = "اضغط لعرض المكتبة كاملة",
+                                                color = Color.White.copy(0.5f),
+                                                fontSize = 13.sp,
+                                                fontFamily = CairoBold
+                                            )
                                         }
-                                        Text(
-                                            text = "${song.playCount} استماع",
-                                            color = Color(0xFF1E88E5),
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
+                                    }
+                                }
+                            }
+
+                            // Summary Statistics Card (Row) representing total performance
+                            item {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(Color.White.copy(alpha = 0.03f))
+                                            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                            .padding(16.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(Icons.Rounded.Equalizer, null, tint = Color(0xFFD81B60), modifier = Modifier.size(32.dp))
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        val totalPlays = allSongs.sumOf { it.playCount }
+                                        Text("$totalPlays مرة", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = CairoBold)
+                                        Text("إجمالي الاستماع", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp, fontFamily = CairoBold)
                                     }
                                 }
                             }

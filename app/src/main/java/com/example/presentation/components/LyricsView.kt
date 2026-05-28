@@ -1,10 +1,14 @@
 package com.example.presentation.components
 
-import androidx.compose.animation.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.lyrics.LrcLine
 import com.example.data.lyrics.LrcParser
+import kotlin.math.abs
 
 @Composable
 fun LyricsView(
@@ -25,8 +30,20 @@ fun LyricsView(
     modifier: Modifier = Modifier
 ) {
     val lines = remember(lrcContent) { LrcParser.parseLrcFile(lrcContent) }
-    val activeLineIndex = remember(lines, currentPositionMs) {
+    val currentLineIndex = remember(lines, currentPositionMs) {
         LrcParser.getCurrentLineIndex(lines, currentPositionMs)
+    }
+
+    val listState = rememberLazyListState()
+
+    // Auto-scroll to current active line
+    LaunchedEffect(currentLineIndex, lines) {
+        if (currentLineIndex >= 0 && lines.isNotEmpty()) {
+            listState.animateScrollToItem(
+                index = maxOf(0, currentLineIndex - 2),
+                scrollOffset = 0
+            )
+        }
     }
 
     Box(
@@ -47,102 +64,59 @@ fun LyricsView(
                 )
             }
         } else {
-            val currentLine = lines.getOrNull(activeLineIndex)
-            val previousLine = lines.getOrNull(activeLineIndex - 1)
-            val nextLine = lines.getOrNull(activeLineIndex + 1)
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 28.dp,   // More generous padding from the right for elegant look
+                    top = 40.dp,
+                    bottom = 120.dp
+                )
             ) {
-                // ── Previous line (25% opaque) ──
-                AnimatedContent(
-                    targetState = previousLine,
-                    transitionSpec = {
-                        fadeIn(tween(400)) togetherWith fadeOut(tween(400))
-                    },
-                    label = "prevLine"
-                ) { prev ->
-                    if (prev != null) {
-                        Text(
-                            text = prev.text,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Color.White.copy(alpha = 0.25f),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 20.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    onLineClicked(prev.timestamp)
-                                }
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(48.dp))
-                    }
-                }
+                itemsIndexed(
+                    items = lines,
+                    key = { index, _ -> index }
+                ) { index, line ->
+                    val isActive = index == currentLineIndex
+                    val distance = abs(index - currentLineIndex)
 
-                // ── Active line (Pure white & Bold) ──
-                AnimatedContent(
-                    targetState = currentLine,
-                    transitionSpec = {
-                        (slideInVertically(animationSpec = tween(500)) { it / 3 } + fadeIn(tween(500)))
-                            .togetherWith(slideOutVertically(animationSpec = tween(400)) { -it / 3 } + fadeOut(tween(400)))
-                    },
-                    label = "activeLine"
-                ) { curr ->
+                    val textColor by animateColorAsState(
+                        targetValue = when {
+                            isActive -> Color.White
+                            distance == 1 -> Color.White.copy(alpha = 0.45f)
+                            distance == 2 -> Color.White.copy(alpha = 0.25f)
+                            else -> Color.White.copy(alpha = 0.15f)
+                        },
+                        animationSpec = tween(300),
+                        label = "lyric_color_$index"
+                    )
+
+                    val fontSize by animateFloatAsState(
+                        targetValue = if (isActive) 26f else 20f,
+                        animationSpec = tween(300),
+                        label = "lyric_size_$index"
+                    )
+
+                    val fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+
                     Text(
-                        text = curr?.text ?: "",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 38.sp,
+                        text = line.text,
+                        color = textColor,
+                        fontSize = fontSize.sp,
+                        fontWeight = fontWeight,
+                        textAlign = TextAlign.End, // Aligned to right as requested
+                        lineHeight = (fontSize * 1.5f).sp,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(vertical = 12.dp)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {
-                                curr?.let { onLineClicked(it.timestamp) }
+                                onLineClicked(line.timestamp)
                             }
                     )
-                }
-
-                // ── Next line (20% opaque) ──
-                AnimatedContent(
-                    targetState = nextLine,
-                    transitionSpec = {
-                        fadeIn(tween(400)) togetherWith fadeOut(tween(400))
-                    },
-                    label = "nextLine"
-                ) { next ->
-                    if (next != null) {
-                        Text(
-                            text = next.text,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Color.White.copy(alpha = 0.20f),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 20.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    onLineClicked(next.timestamp)
-                                }
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(48.dp))
-                    }
                 }
             }
         }
