@@ -1,21 +1,24 @@
 package com.example.service
 
-import android.app.Service
 import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
+import android.os.Build
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaSessionService
 import com.example.data.db.SongDao
 import com.example.data.db.SongDatabase
 import com.example.data.db.SongEntity
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
-class MusicService : Service() {
+class MusicService : MediaSessionService() {
 
     private val binder = MusicBinder()
     
@@ -24,6 +27,9 @@ class MusicService : Service() {
 
     private lateinit var songDao: SongDao
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    // MediaSession fields
+    private var mediaSession: MediaSession? = null
 
     // Currently playing playlist queue
     private val _playlist = MutableStateFlow<List<SongEntity>>(emptyList())
@@ -59,6 +65,9 @@ class MusicService : Service() {
             repeatMode = Player.REPEAT_MODE_ALL
         }
         
+        // Initialize Media3 MediaSession
+        mediaSession = MediaSession.Builder(this, player).build()
+
         player.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
@@ -95,8 +104,45 @@ class MusicService : Service() {
         })
     }
 
-    override fun onBind(intent: Intent?): IBinder {
+    // Modern multi-role binding support for Media3 controllers and internal app connections
+    override fun onBind(intent: Intent?): IBinder? {
+        if (intent?.action == "androidx.media3.session.MediaSessionService") {
+            return super.onBind(intent)
+        }
         return binder
+    }
+
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
+        return mediaSession
+    }
+
+    private fun getArtworkBytes(filePath: String): ByteArray? {
+        return try {
+            val retriever = android.media.MediaMetadataRetriever()
+            retriever.setDataSource(filePath)
+            val bytes = retriever.embeddedPicture
+            retriever.release()
+            bytes
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun createMediaItem(song: SongEntity, mediaUri: String): MediaItem {
+        val metadataBuilder = MediaMetadata.Builder()
+            .setTitle(song.title)
+            .setArtist(song.artist)
+            
+        val artworkBytes = getArtworkBytes(song.filePath)
+        if (artworkBytes != null) {
+            metadataBuilder.setArtworkData(artworkBytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+        }
+
+        return MediaItem.Builder()
+            .setMediaId(song.id.toString())
+            .setUri(mediaUri)
+            .setMediaMetadata(metadataBuilder.build())
+            .build()
     }
 
     fun playSongList(songs: List<SongEntity>, startIndex: Int) {
@@ -120,7 +166,7 @@ class MusicService : Service() {
                         song.filePath
                     }
                 }
-                player.addMediaItem(MediaItem.fromUri(mediaUri))
+                player.addMediaItem(createMediaItem(song, mediaUri))
             }
 
             if (startIndex in songs.indices) {
@@ -266,6 +312,11 @@ class MusicService : Service() {
     override fun onDestroy() {
         checkAndIncrementPlayCount()
         positionTrackerJob?.cancel()
+        
+        mediaSession?.run {
+            release()
+            mediaSession = null
+        }
         player.release()
         serviceScope.cancel()
         super.onDestroy()
