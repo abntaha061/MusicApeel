@@ -1,14 +1,10 @@
 package com.example.presentation.components
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.lyrics.LrcLine
 import com.example.data.lyrics.LrcParser
-import kotlin.math.abs
 
 @Composable
 fun LyricsView(
@@ -34,19 +29,10 @@ fun LyricsView(
         LrcParser.getCurrentLineIndex(lines, currentPositionMs)
     }
 
-    val listState = rememberLazyListState()
-
-    // Automatically center active lyric smoothly
-    LaunchedEffect(activeLineIndex) {
-        if (lines.isNotEmpty() && activeLineIndex in lines.indices) {
-            // Animate scroll to active lyric line centered
-            val centerOffset = 4 // Approx index offset to show active line in middle
-            val scrollTo = if (activeLineIndex > centerOffset) activeLineIndex - 2 else 0
-            listState.animateScrollToItem(scrollTo)
-        }
-    }
-
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
         if (lines.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -61,65 +47,102 @@ fun LyricsView(
                 )
             }
         } else {
-            LazyColumn(
-                state = listState,
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 24.dp,   // More breathing space from right edge
-                    top = 180.dp,
-                    bottom = 260.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.End // Align item placeholders to the right
+            val currentLine = lines.getOrNull(activeLineIndex)
+            val previousLine = lines.getOrNull(activeLineIndex - 1)
+            val nextLine = lines.getOrNull(activeLineIndex + 1)
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
             ) {
-                itemsIndexed(
-                    items = lines,
-                    key = { index, _ -> index }
-                ) { index, line ->
-                    val isActive = index == activeLineIndex
-                    val distance = abs(index - activeLineIndex)
+                // ── Previous line (25% opaque) ──
+                AnimatedContent(
+                    targetState = previousLine,
+                    transitionSpec = {
+                        fadeIn(tween(400)) togetherWith fadeOut(tween(400))
+                    },
+                    label = "prevLine"
+                ) { prev ->
+                    if (prev != null) {
+                        Text(
+                            text = prev.text,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color.White.copy(alpha = 0.25f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 20.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    onLineClicked(prev.timestamp)
+                                }
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(48.dp))
+                    }
+                }
 
-                    // Smooth dynamic scaling of font size depending on active state
-                    val fontSize by animateFloatAsState(
-                        targetValue = when {
-                            isActive -> 26f
-                            distance == 1 -> 20f
-                            else -> 17f
-                        },
-                        animationSpec = tween(300),
-                        label = "fontSize"
-                    )
-
-                    // Smooth alpha transition based on closeness to current line
-                    val alpha by animateFloatAsState(
-                        targetValue = when {
-                            isActive -> 1.0f
-                            distance == 1 -> 0.65f
-                            distance == 2 -> 0.45f
-                            else -> 0.30f
-                        },
-                        animationSpec = tween(300),
-                        label = "alpha"
-                    )
-
+                // ── Active line (Pure white & Bold) ──
+                AnimatedContent(
+                    targetState = currentLine,
+                    transitionSpec = {
+                        (slideInVertically(animationSpec = tween(500)) { it / 3 } + fadeIn(tween(500)))
+                            .togetherWith(slideOutVertically(animationSpec = tween(400)) { -it / 3 } + fadeOut(tween(400)))
+                    },
+                    label = "activeLine"
+                ) { curr ->
                     Text(
-                        text = line.text,
-                        fontSize = fontSize.sp,
-                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                        color = Color.White.copy(alpha = alpha),
-                        textAlign = TextAlign.Right, // Right align text characters
-                        lineHeight = (fontSize * 1.4f).sp,
+                        text = curr?.text ?: "",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 38.sp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {
-                                onLineClicked(line.timestamp)
+                                curr?.let { onLineClicked(it.timestamp) }
                             }
                     )
+                }
+
+                // ── Next line (20% opaque) ──
+                AnimatedContent(
+                    targetState = nextLine,
+                    transitionSpec = {
+                        fadeIn(tween(400)) togetherWith fadeOut(tween(400))
+                    },
+                    label = "nextLine"
+                ) { next ->
+                    if (next != null) {
+                        Text(
+                            text = next.text,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color.White.copy(alpha = 0.20f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 20.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    onLineClicked(next.timestamp)
+                                }
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(48.dp))
+                    }
                 }
             }
         }

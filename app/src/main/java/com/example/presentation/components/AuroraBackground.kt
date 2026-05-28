@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -39,19 +40,19 @@ fun AuroraBackground(
 
     val infiniteTransition = rememberInfiniteTransition(label = "aurora")
 
-    // Blob 1 - moves horizontally and vertically
+    // Blob 1 - moves horizontally and vertically very slowly (28s / 22s)
     val blob1X by infiniteTransition.animateFloat(
-        initialValue = 0.05f,
-        targetValue = 0.85f,
+        initialValue = -0.2f,
+        targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(18000, easing = FastOutSlowInEasing),
+            animation = tween(28000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "b1x"
     )
     val blob1Y by infiniteTransition.animateFloat(
-        initialValue = 0.1f,
-        targetValue = 0.6f,
+        initialValue = 0.0f,
+        targetValue = 0.5f,
         animationSpec = infiniteRepeatable(
             animation = tween(22000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
@@ -59,19 +60,19 @@ fun AuroraBackground(
         label = "b1y"
     )
 
-    // Blob 2 - moves reverse of blob 1
+    // Blob 2 - moves opposite of blob 1 very slowly (32s / 25s)
     val blob2X by infiniteTransition.animateFloat(
-        initialValue = 0.9f,
-        targetValue = 0.1f,
+        initialValue = 1.2f,
+        targetValue = -0.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(20000, easing = FastOutSlowInEasing),
+            animation = tween(32000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "b2x"
     )
     val blob2Y by infiniteTransition.animateFloat(
-        initialValue = 0.7f,
-        targetValue = 0.2f,
+        initialValue = 0.6f,
+        targetValue = 0.1f,
         animationSpec = infiniteRepeatable(
             animation = tween(25000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
@@ -79,21 +80,21 @@ fun AuroraBackground(
         label = "b2y"
     )
 
-    // Blob 3 - moves in the center
+    // Blob 3 - moves diagonally very slowly (20s / 26s)
     val blob3X by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.7f,
+        initialValue = 0.2f,
+        targetValue = 0.8f,
         animationSpec = infiniteRepeatable(
-            animation = tween(15000, easing = FastOutSlowInEasing),
+            animation = tween(20000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "b3x"
     )
     val blob3Y by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 0.3f,
+        initialValue = 0.9f,
+        targetValue = 0.2f,
         animationSpec = infiniteRepeatable(
-            animation = tween(17000, easing = FastOutSlowInEasing),
+            animation = tween(26000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "b3y"
@@ -104,9 +105,9 @@ fun AuroraBackground(
     val color3 = safeColors[2]
 
     // Smooth color transitions during song changes
-    val animatedColor1 by animateColorAsState(targetValue = color1, animationSpec = tween(1500), label = "c1")
+    val animatedColor1 by animateColorAsState(targetValue = color1, animationSpec = tween(1200), label = "c1")
     val animatedColor2 by animateColorAsState(targetValue = color2, animationSpec = tween(1500), label = "c2")
-    val animatedColor3 by animateColorAsState(targetValue = color3, animationSpec = tween(1500), label = "c3")
+    val animatedColor3 by animateColorAsState(targetValue = color3, animationSpec = tween(1800), label = "c3")
 
     Box(modifier = modifier) {
         Canvas(
@@ -116,7 +117,7 @@ fun AuroraBackground(
                     // Hardware accelerated GPU blur on Android S+ (API 31+)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         try {
-                            renderEffect = BlurEffect(90f, 90f, TileMode.Clamp)
+                            renderEffect = BlurEffect(120f, 120f, TileMode.Clamp)
                         } catch (t: Throwable) {
                             t.printStackTrace()
                         }
@@ -124,55 +125,80 @@ fun AuroraBackground(
                 }
         ) {
             // Dark base luxury background underlay
-            drawRect(Color(0xFF040405))
+            drawRect(Color(0xFF060606))
 
-            // Blob 1 drawing
-            drawCircle(
+            // Blob 1 drawing - Elongated Oval, covering a huge area
+            drawOval(
                 brush = Brush.radialGradient(
                     colorStops = arrayOf(
-                        0.0f to animatedColor1.copy(alpha = 0.70f),
-                        0.5f to animatedColor1.copy(alpha = 0.30f),
+                        0.0f to animatedColor1.copy(alpha = 0.85f),
+                        0.3f to animatedColor1.copy(alpha = 0.55f),
+                        0.6f to animatedColor1.copy(alpha = 0.25f),
                         1.0f to Color.Transparent
                     ),
                     center = Offset(size.width * blob1X, size.height * blob1Y),
-                    radius = size.width * 1.1f
+                    radius = size.width * 0.9f
                 ),
-                radius = size.width * 1.1f,
-                center = Offset(size.width * blob1X, size.height * blob1Y)
+                topLeft = Offset(
+                    size.width * blob1X - size.width * 0.9f,
+                    size.height * blob1Y - size.height * 0.45f
+                ),
+                size = Size(size.width * 1.8f, size.height * 0.9f)
             )
 
             // Blob 2 drawing
-            drawCircle(
+            drawOval(
                 brush = Brush.radialGradient(
                     colorStops = arrayOf(
-                        0.0f to animatedColor2.copy(alpha = 0.65f),
-                        0.5f to animatedColor2.copy(alpha = 0.25f),
+                        0.0f to animatedColor2.copy(alpha = 0.80f),
+                        0.3f to animatedColor2.copy(alpha = 0.50f),
+                        0.6f to animatedColor2.copy(alpha = 0.20f),
                         1.0f to Color.Transparent
                     ),
                     center = Offset(size.width * blob2X, size.height * blob2Y),
-                    radius = size.width * 0.95f
+                    radius = size.width * 0.85f
                 ),
-                radius = size.width * 0.95f,
-                center = Offset(size.width * blob2X, size.height * blob2Y)
+                topLeft = Offset(
+                    size.width * blob2X - size.width * 0.85f,
+                    size.height * blob2Y - size.height * 0.50f
+                ),
+                size = Size(size.width * 1.7f, size.height * 1.0f)
             )
 
             // Blob 3 drawing
-            drawCircle(
+            drawOval(
                 brush = Brush.radialGradient(
                     colorStops = arrayOf(
-                        0.0f to animatedColor3.copy(alpha = 0.55f),
-                        0.5f to animatedColor3.copy(alpha = 0.20f),
+                        0.0f to animatedColor3.copy(alpha = 0.70f),
+                        0.4f to animatedColor3.copy(alpha = 0.35f),
                         1.0f to Color.Transparent
                     ),
                     center = Offset(size.width * blob3X, size.height * blob3Y),
-                    radius = size.width * 0.85f
+                    radius = size.width * 0.70f
                 ),
-                radius = size.width * 0.85f,
-                center = Offset(size.width * blob3X, size.height * blob3Y)
+                topLeft = Offset(
+                    size.width * blob3X - size.width * 0.70f,
+                    size.height * blob3Y - size.height * 0.40f
+                ),
+                size = Size(size.width * 1.4f, size.height * 0.80f)
             )
 
-            // Delicate modern scrim to maintain content readability (text contrast)
-            drawRect(Color.Black.copy(alpha = 0.32f))
+            // Center subtle ambient glow
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.0f to Color.White.copy(alpha = 0.06f),
+                        1.0f to Color.Transparent
+                    ),
+                    center = Offset(size.width * 0.5f, size.height * 0.5f),
+                    radius = size.width * 0.5f
+                ),
+                radius = size.width * 0.5f,
+                center = Offset(size.width * 0.5f, size.height * 0.5f)
+            )
+
+            // Scrim to maintain content readability (text contrast)
+            drawRect(Color.Black.copy(alpha = 0.20f))
         }
     }
 }
