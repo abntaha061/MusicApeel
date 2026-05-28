@@ -1,6 +1,7 @@
 package com.example.presentation.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -73,9 +74,10 @@ fun LyricsView(
                     contentPadding = PaddingValues(
                         start = 28.dp,  // RTL: right margin padding
                         end = 16.dp,    // RTL: left margin padding
-                        top = 40.dp,
-                        bottom = 120.dp
-                    )
+                        top = 100.dp,
+                        bottom = 220.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     itemsIndexed(
                         items = lines,
@@ -89,15 +91,20 @@ fun LyricsView(
                                 isActive -> Color.White
                                 distance == 1 -> Color.White.copy(alpha = 0.45f)
                                 distance == 2 -> Color.White.copy(alpha = 0.25f)
-                                else -> Color.White.copy(alpha = 0.15f)
+                                else -> Color.White.copy(alpha = 0.10f)
                             },
-                            animationSpec = tween(300),
+                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
                             label = "lyric_color_$index"
                         )
 
                         val fontSize by animateFloatAsState(
-                            targetValue = if (isActive) 26f else 20f,
-                            animationSpec = tween(300),
+                            targetValue = when {
+                                isActive -> 28f
+                                distance == 1 -> 21f
+                                distance == 2 -> 19f
+                                else -> 17f
+                            },
+                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
                             label = "lyric_size_$index"
                         )
 
@@ -109,10 +116,10 @@ fun LyricsView(
                             fontSize = fontSize.sp,
                             fontWeight = fontWeight,
                             textAlign = TextAlign.Start, // RTL: Start = Right
-                            lineHeight = (fontSize * 1.5f).sp,
+                            lineHeight = (fontSize * 1.4f).sp,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 12.dp)
+                                .padding(vertical = 8.dp)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
