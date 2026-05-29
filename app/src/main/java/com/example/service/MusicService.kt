@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
 import android.os.Build
+import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -12,6 +13,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.MediaStyleNotificationHelper
 import com.example.data.db.SongDao
 import com.example.data.db.SongDatabase
 import com.example.data.db.SongEntity
@@ -19,6 +21,15 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 class MusicService : MediaSessionService() {
+
+    companion object {
+        const val CHANNEL_ID = "tarab_music_channel"
+        const val NOTIFICATION_ID = 1001
+        const val ACTION_PLAY = "com.example.action.PLAY"
+        const val ACTION_PAUSE = "com.example.action.PAUSE"
+        const val ACTION_NEXT = "com.example.action.NEXT"
+        const val ACTION_PREVIOUS = "com.example.action.PREVIOUS"
+    }
 
     private val binder = MusicBinder()
     
@@ -30,6 +41,10 @@ class MusicService : MediaSessionService() {
 
     // MediaSession fields
     private var mediaSession: MediaSession? = null
+
+    // Tracking notification caching
+    private var lastLoadedSongId: Long = -1L
+    private var cachedAlbumArt: android.graphics.Bitmap? = null
 
     // Currently playing playlist queue
     private val _playlist = MutableStateFlow<List<SongEntity>>(emptyList())
@@ -52,6 +67,26 @@ class MusicService : MediaSessionService() {
 
     private var positionTrackerJob: Job? = null
 
+    // Broadcast receiver for status bar controls
+    private val actionReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: Intent) {
+            when (intent.action) {
+                ACTION_PLAY -> {
+                    if (!player.isPlaying) {
+                        togglePlayPause()
+                    }
+                }
+                ACTION_PAUSE -> {
+                    if (player.isPlaying) {
+                        togglePlayPause()
+                    }
+                }
+                ACTION_NEXT -> playNext()
+                ACTION_PREVIOUS -> playPrevious()
+            }
+        }
+    }
+
     inner class MusicBinder : Binder() {
         fun getService(): MusicService = this@MusicService
     }
@@ -67,6 +102,21 @@ class MusicService : MediaSessionService() {
         
         // Initialize Media3 MediaSession
         mediaSession = MediaSession.Builder(this, player).build()
+
+        createNotificationChannel()
+
+        // Register Broadcast Receiver for Notification commands
+        val filter = android.content.IntentFilter().apply {
+            addAction(ACTION_PLAY)
+            addAction(ACTION_PAUSE)
+            addAction(ACTION_NEXT)
+            addAction(ACTION_PREVIOUS)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(actionReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(actionReceiver, filter)
+        }
 
         player.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -102,6 +152,17 @@ class MusicService : MediaSessionService() {
                 }
             }
         })
+
+        // Core dynamic observer to update system media notification controls reactively
+        serviceScope.launch {
+            combine(_currentSong, _isPlaying) { song, playing ->
+                song to playing
+            }.collect { (song, playing) ->
+                if (song != null) {
+                    updateNotification(song, playing)
+                }
+            }
+        }
     }
 
     // Modern multi-role binding support for Media3 controllers and internal app connections
@@ -309,9 +370,141 @@ class MusicService : MediaSessionService() {
         }
     }
 
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                CHANNEL_ID,
+                "طرب — مشغل الموسيقى",
+                android.app.NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "التحكم في تشغيل الموسيقى"
+                setShowBadge(false)
+            }
+            val manager = getSystemService(android.app.NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun updateNotification(song: SongEntity, isPlaying: Boolean) {
+        serviceScope.launch(Dispatchers.Main) {
+            val artwork = withContext(Dispatchers.IO) {
+                if (lastLoadedSongId == song.id) {
+                    cachedAlbumArt
+                } else {
+                    lastLoadedSongId = song.id
+                    cachedAlbumArt = loadAlbumArt(song.filePath)
+                    cachedAlbumArt
+                }
+            }
+            showNotification(song, isPlaying, artwork)
+        }
+    }
+
+    private fun showNotification(song: SongEntity, isPlaying: Boolean, artwork: android.graphics.Bitmap?) {
+        val openAppIntent = android.app.PendingIntent.getActivity(
+            this, 0,
+            android.content.Intent(this, com.example.MainActivity::class.java).apply {
+                flags = android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val pkg = packageName
+        // build actions PendingIntents
+        val prevIntent = android.app.PendingIntent.getBroadcast(
+            this, ACTION_PREVIOUS.hashCode(),
+            android.content.Intent(ACTION_PREVIOUS).apply { setPackage(pkg) },
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+        val playPauseIntent = if (isPlaying) {
+            android.app.PendingIntent.getBroadcast(
+                this, ACTION_PAUSE.hashCode(),
+                android.content.Intent(ACTION_PAUSE).apply { setPackage(pkg) },
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+        } else {
+            android.app.PendingIntent.getBroadcast(
+                this, ACTION_PLAY.hashCode(),
+                android.content.Intent(ACTION_PLAY).apply { setPackage(pkg) },
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+        val nextIntent = android.app.PendingIntent.getBroadcast(
+            this, ACTION_NEXT.hashCode(),
+            android.content.Intent(ACTION_NEXT).apply { setPackage(pkg) },
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val prevAction = androidx.core.app.NotificationCompat.Action(
+            com.example.R.drawable.ic_skip_previous, "السابق", prevIntent
+        )
+        val playPauseAction = androidx.core.app.NotificationCompat.Action(
+            if (isPlaying) com.example.R.drawable.ic_pause else com.example.R.drawable.ic_play,
+            if (isPlaying) "إيقاف مؤقت" else "تشغيل",
+            playPauseIntent
+        )
+        val nextAction = androidx.core.app.NotificationCompat.Action(
+            com.example.R.drawable.ic_skip_next, "التالي", nextIntent
+        )
+
+        val defaultArt = android.graphics.BitmapFactory.decodeResource(
+            resources,
+            com.example.R.drawable.ic_music_note
+        )
+        
+        val notification = androidx.core.app.NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(song.title)
+            .setContentText(song.artist)
+            .setSubText("طرب")
+            .setSmallIcon(com.example.R.drawable.ic_music_note)
+            .setLargeIcon(artwork ?: defaultArt)
+            .setContentIntent(openAppIntent)
+            .addAction(prevAction)
+            .addAction(playPauseAction)
+            .addAction(nextAction)
+            .setStyle(
+                androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(mediaSession!!)
+                    .setShowActionsInCompactView(0, 1, 2)
+            )
+            .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC)
+            .setOnlyAlertOnce(true)
+            .setOngoing(isPlaying)
+            .build()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID, 
+                notification, 
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun loadAlbumArt(filePath: String): android.graphics.Bitmap? {
+        return try {
+            val retriever = android.media.MediaMetadataRetriever()
+            retriever.setDataSource(filePath)
+            val bytes = retriever.embeddedPicture
+            retriever.release()
+            bytes?.let { 
+                android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) 
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     override fun onDestroy() {
         checkAndIncrementPlayCount()
         positionTrackerJob?.cancel()
+        
+        try {
+            unregisterReceiver(actionReceiver)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         
         mediaSession?.run {
             release()

@@ -1,8 +1,6 @@
 package com.example.presentation.components
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -46,11 +44,11 @@ fun LyricsView(
 
         val listState = rememberLazyListState()
 
-        // Auto-scroll to current active line
+        // Auto-scroll to current active line smoothly
         LaunchedEffect(currentLineIndex, lines) {
             if (currentLineIndex >= 0 && lines.isNotEmpty()) {
                 listState.animateScrollToItem(
-                    index = maxOf(0, currentLineIndex - 3),
+                    index = maxOf(0, currentLineIndex - 2),
                     scrollOffset = 0
                 )
             }
@@ -83,12 +81,11 @@ fun LyricsView(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
-                            start = 24.dp,  // RTL: right margin padding
-                            end = 16.dp,    // RTL: left margin padding
+                            start = 24.dp,
+                            end = 16.dp,
                             top = 120.dp,
                             bottom = 220.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        )
                     ) {
                         itemsIndexed(
                             items = lines,
@@ -97,44 +94,37 @@ fun LyricsView(
                             val distance = abs(index - currentLineIndex)
                             val isActive = distance == 0
 
-                            val textColor by animateColorAsState(
+                            // Performance optimization: only animate the alpha opacity of each lyric line
+                            val alpha by animateFloatAsState(
                                 targetValue = when (distance) {
-                                    0 -> Color.White                       // Active: Pure White
-                                    1 -> Color.White.copy(alpha = 0.45f)   // Near: Medium Gray
-                                    2 -> Color.White.copy(alpha = 0.25f)   // Farther: Faded
-                                    3 -> Color.White.copy(alpha = 0.15f)   // Even Farther: Very Faded
-                                    else -> Color.White.copy(alpha = 0.08f) // Unfocused: Ghostly
+                                    0 -> 1.0f
+                                    1 -> 0.50f
+                                    2 -> 0.28f
+                                    3 -> 0.15f
+                                    else -> 0.08f
                                 },
-                                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                label = "lyric_color_$index"
+                                animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+                                label = "lyric_alpha_$index"
                             )
 
-                            val fontSize by animateFloatAsState(
-                                targetValue = when (distance) {
-                                    0 -> 26f   // Active: 26sp
-                                    1 -> 20f   // Near: 20sp
-                                    2 -> 17f   // Far: 17sp
-                                    else -> 15f // Others: 15sp
-                                },
-                                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                label = "lyric_size_$index"
-                            )
+                            // Keep the structural dimensions static to avoid layout calculation bottleneck
+                            val fontSize = when (distance) {
+                                0 -> 25.sp
+                                1 -> 20.sp
+                                2 -> 17.sp
+                                else -> 15.sp
+                            }
 
-                            val verticalPadding by animateDpAsState(
-                                targetValue = if (isActive) 14.dp else 9.dp,
-                                animationSpec = tween(durationMillis = 350),
-                                label = "lyric_padding_$index"
-                            )
-
+                            val verticalPadding = if (isActive) 14.dp else 9.dp
                             val fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
 
                             Text(
                                 text = line.text,
-                                color = textColor,
-                                fontSize = fontSize.sp,
+                                color = Color.White.copy(alpha = alpha),
+                                fontSize = fontSize,
                                 fontWeight = fontWeight,
-                                textAlign = TextAlign.Start, // RTL: Start = Right
-                                lineHeight = (fontSize * 1.45f).sp,
+                                textAlign = TextAlign.Start, // RTL right-to-left layout
+                                lineHeight = fontSize * 1.5f,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = verticalPadding)
@@ -153,7 +143,7 @@ fun LyricsView(
     }
 }
 
-// إخفاء الكلمات من الأعلى والأسفل بشكل انسيابي وبأداء عالي مستقر
+// Fade out top and bottom areas elegantly
 fun Modifier.fadingEdge(): Modifier = this
     .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
     .drawWithContent {

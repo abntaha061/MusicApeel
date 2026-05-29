@@ -1,6 +1,5 @@
 package com.example.presentation.components
 
-import android.os.Build
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -9,127 +8,119 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.abs
 
 @Composable
 fun AuroraBackground(
     dominantColors: List<Color>,
     modifier: Modifier = Modifier
 ) {
-    // Default colors if extracted list is empty or insufficient
+    // Ensure extracted colors are not empty, transparent, or black
     val safeColors = remember(dominantColors) {
-        if (dominantColors.size >= 3) {
-            dominantColors
-        } else if (dominantColors.size == 2) {
-            dominantColors + listOf(Color(0xFF018786))
-        } else if (dominantColors.size == 1) {
-            dominantColors + listOf(Color(0xFF03DAC6), Color(0xFF018786))
+        val filtered = dominantColors.filter { 
+            it != Color.Transparent && 
+            it != Color.Black && 
+            it != Color(0xFF0F172A) && 
+            it != Color(0xFF1E293B) && 
+            it != Color(0xFF334155) 
+        }
+        if (filtered.size >= 2) {
+            filtered
         } else {
             listOf(
-                Color(0xFF6200EE), // Vibrant Purple
-                Color(0xFF03DAC6), // Teal
-                Color(0xFF018786)  // Muted green-teal
+                Color(0xFF8B4513), // Warm Brown (Default)
+                Color(0xFF2F4F4F), // Dark Slate Green
+                Color(0xFF4B0082)  // Indigo Purple
             )
         }
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "aurora")
 
-    // Slow, fluid animation
-    val offset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(8000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "aurora_offset"
+    val b1x by infiniteTransition.animateFloat(
+        initialValue = 0.0f, targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(tween(7000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "b1x"
+    )
+    val b2x by infiniteTransition.animateFloat(
+        initialValue = 1.0f, targetValue = 0.0f,
+        animationSpec = infiniteRepeatable(tween(8500, easing = LinearEasing), RepeatMode.Reverse),
+        label = "b2x"
+    )
+    val b3y by infiniteTransition.animateFloat(
+        initialValue = 0.2f, targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(tween(6500, easing = LinearEasing), RepeatMode.Reverse),
+        label = "b3y"
     )
 
-    val color1 = safeColors[0]
-    val color2 = safeColors[1]
-    val color3 = safeColors[2]
+    // Ensure safe color alphas
+    val c1 = safeColors[0].copy(alpha = 1f)
+    val c2 = safeColors[1].copy(alpha = 1f)
+    val c3 = safeColors.getOrElse(2) { safeColors[0] }.copy(alpha = 1f)
 
-    // Smooth color transitions during song changes
-    val animatedColor1 by animateColorAsState(targetValue = color1, animationSpec = tween(1200), label = "c1")
-    val animatedColor2 by animateColorAsState(targetValue = color2, animationSpec = tween(1500), label = "c2")
-    val animatedColor3 by animateColorAsState(targetValue = color3, animationSpec = tween(1800), label = "c3")
+    // Smooth transition between track changes
+    val animatedC1 by animateColorAsState(targetValue = c1, animationSpec = tween(1200), label = "anim_c1")
+    val animatedC2 by animateColorAsState(targetValue = c2, animationSpec = tween(1500), label = "anim_c2")
+    val animatedC3 by animateColorAsState(targetValue = c3, animationSpec = tween(1800), label = "anim_c3")
 
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val width = size.width
-        val height = size.height
+    Box(modifier = modifier.fillMaxSize()) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val width = size.width
+            val height = size.height
+            val minDim = size.minDimension
 
-        // Dark base luxury background underlay
-        drawRect(Color.Black)
+            // Solid high end luxury dark slate backdrop underlay
+            drawRect(color = Color(0xFF070708))
 
-        // Spot 1 - Top-Right - Strong Alpha for vivid color
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    animatedColor1.copy(alpha = 0.75f),
-                    animatedColor1.copy(alpha = 0.35f),
-                    Color.Transparent
+            // Blob 1 — Swirling left/right
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        animatedC1.copy(alpha = 0.70f),
+                        animatedC1.copy(alpha = 0.35f),
+                        Color.Transparent
+                    ),
+                    center = Offset(width * b1x, height * 0.25f),
+                    radius = minDim * 0.9f
                 ),
-                center = Offset(
-                    x = width * (0.75f + offset * 0.2f),
-                    y = height * (0.15f + offset * 0.1f)
-                ),
-                radius = width * 0.85f
-            ),
-            radius = width * 0.85f,
-            center = Offset(
-                x = width * (0.75f + offset * 0.2f),
-                y = height * (0.15f + offset * 0.1f)
-                )
-        )
-
-        // Spot 2 - Bottom-Left
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    animatedColor2.copy(alpha = 0.65f),
-                    animatedColor2.copy(alpha = 0.30f),
-                    Color.Transparent
-                ),
-                center = Offset(
-                    x = width * (0.20f - offset * 0.15f),
-                    y = height * (0.75f - offset * 0.1f)
-                ),
-                radius = width * 0.80f
-            ),
-            radius = width * 0.80f,
-            center = Offset(
-                x = width * (0.20f - offset * 0.15f),
-                y = height * (0.75f - offset * 0.1f)
+                radius = minDim * 0.9f,
+                center = Offset(width * b1x, height * 0.25f)
             )
-        )
 
-        // Spot 3 - Center
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    animatedColor3.copy(alpha = 0.45f),
-                    Color.Transparent
+            // Blob 2 — Swirling complementary opposite
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        animatedC2.copy(alpha = 0.65f),
+                        animatedC2.copy(alpha = 0.30f),
+                        Color.Transparent
+                    ),
+                    center = Offset(width * b2x, height * 0.65f),
+                    radius = minDim * 0.85f
                 ),
-                center = Offset(
-                    x = width * 0.5f,
-                    y = height * (0.5f + offset * 0.15f)
-                ),
-                radius = width * 0.60f
-            ),
-            radius = width * 0.60f,
-            center = Offset(
-                x = width * 0.5f,
-                y = height * (0.5f + offset * 0.15f)
+                radius = minDim * 0.85f,
+                center = Offset(width * b2x, height * 0.65f)
             )
-        )
 
-        // Light scrim to ensure text / lyrics are perfectly readable
-        drawRect(Color.Black.copy(alpha = 0.30f))
+            // Blob 3 — Moving vertically in central axis
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        animatedC3.copy(alpha = 0.55f),
+                        animatedC3.copy(alpha = 0.25f),
+                        Color.Transparent
+                    ),
+                    center = Offset(width * 0.5f, height * b3y),
+                    radius = minDim * 0.75f
+                ),
+                radius = minDim * 0.75f,
+                center = Offset(width * 0.5f, height * b3y)
+            )
+
+            // Dark scrim overlay to secure typography legibility and readability contrast
+            drawRect(color = Color.Black.copy(alpha = 0.16f))
+        }
     }
 }
