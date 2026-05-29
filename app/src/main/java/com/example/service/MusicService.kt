@@ -198,39 +198,43 @@ class MusicService : MediaSessionService() {
             _playlist.value = songs
 
             serviceScope.launch {
-                // Background processing of Uri and MediaItem mapping
-                val mediaItems = withContext(Dispatchers.IO) {
-                    songs.map { song ->
-                        val mediaUri = if (song.filePath.startsWith("assets:///")) {
-                            UriUtil.getAssetUri(song.filePath)
-                        } else {
-                            val file = java.io.File(song.filePath)
-                            if (file.exists()) {
-                                android.net.Uri.fromFile(file).toString()
+                try {
+                    // Background processing of Uri and MediaItem mapping
+                    val mediaItems = withContext(Dispatchers.IO) {
+                        songs.map { song ->
+                            val mediaUri = if (song.filePath.startsWith("assets:///")) {
+                                UriUtil.getAssetUri(song.filePath)
                             } else {
-                                song.filePath
+                                val file = java.io.File(song.filePath)
+                                if (file.exists()) {
+                                    android.net.Uri.fromFile(file).toString()
+                                } else {
+                                    song.filePath
+                                }
                             }
+                            createMediaItem(song, mediaUri)
                         }
-                        createMediaItem(song, mediaUri)
                     }
-                }
 
-                // Apply on Main thread in a single bulk operation
-                player.clearMediaItems()
-                player.setMediaItems(mediaItems)
+                    // Apply on Main thread in a single bulk operation
+                    player.clearMediaItems()
+                    player.setMediaItems(mediaItems)
 
-                if (startIndex in songs.indices) {
-                    player.seekTo(startIndex, 0L)
-                    player.prepare()
-                    player.play()
+                    if (startIndex in songs.indices) {
+                        player.seekTo(startIndex, 0L)
+                        player.prepare()
+                        player.play()
 
-                    val selectedSong = songs[startIndex]
-                    _currentSong.value = selectedSong
-                    
-                    // Track listen stats initiation
-                    songStartTime = System.currentTimeMillis()
-                    currentSongId = selectedSong.id
-                    currentSongDuration = selectedSong.duration
+                        val selectedSong = songs[startIndex]
+                        _currentSong.value = selectedSong
+                        
+                        // Track listen stats initiation
+                        songStartTime = System.currentTimeMillis()
+                        currentSongId = selectedSong.id
+                        currentSongDuration = selectedSong.duration
+                    }
+                } catch (coroutineEx: Exception) {
+                    android.util.Log.e("MusicService", "Error in playSongList coroutine", coroutineEx)
                 }
             }
         } catch (e: Exception) {
@@ -376,6 +380,7 @@ class MusicService : MediaSessionService() {
     }
 
     private fun updateNotification(song: SongEntity, isPlaying: Boolean) {
+        val session = mediaSession ?: return
         serviceScope.launch(Dispatchers.Main) {
             val artwork = withContext(Dispatchers.IO) {
                 if (lastLoadedSongId == song.id) {
@@ -386,11 +391,14 @@ class MusicService : MediaSessionService() {
                     cachedAlbumArt
                 }
             }
-            showNotification(song, isPlaying, artwork)
+            if (mediaSession != null) {
+                showNotification(song, isPlaying, artwork)
+            }
         }
     }
 
     private fun showNotification(song: SongEntity, isPlaying: Boolean, artwork: android.graphics.Bitmap?) {
+        val session = mediaSession ?: return
         val openAppIntent = android.app.PendingIntent.getActivity(
             this, 0,
             android.content.Intent(this, com.example.MainActivity::class.java).apply {
@@ -453,7 +461,7 @@ class MusicService : MediaSessionService() {
             .addAction(playPauseAction)
             .addAction(nextAction)
             .setStyle(
-                androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(mediaSession!!)
+                androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(session)
                     .setShowActionsInCompactView(0, 1, 2)
             )
             .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC)

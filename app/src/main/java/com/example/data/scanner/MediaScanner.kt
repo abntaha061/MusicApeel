@@ -74,8 +74,7 @@ class MediaScanner(private val context: Context) {
             
             SongEntity(
                 id = file.absolutePath.hashCode().toLong(),
-                title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
-                    ?: file.nameWithoutExtension,
+                title = file.nameWithoutExtension,
                 artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
                     ?: "فنان غير معروف",
                 album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
