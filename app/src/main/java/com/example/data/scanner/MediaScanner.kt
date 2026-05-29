@@ -31,8 +31,10 @@ class MediaScanner(private val context: Context) {
             file.isFile && file.extension.lowercase() == "mp3"
         } ?: return@withContext emptyList()
         
+        Log.d("SCAN", "ملفات MP3 في المجلد: ${mp3Files.size}")
+        
         // Parallel batch scanning utilizing coroutines for major speed up!
-        coroutineScope {
+        val songs = coroutineScope {
             mp3Files.toList()
                 .chunked(15) // Process 15 files in parallel batches concurrently in pool
                 .flatMap { batch ->
@@ -45,6 +47,9 @@ class MediaScanner(private val context: Context) {
                 }
                 .sortedBy { it.title }
         }
+        
+        Log.d("SCAN", "أغاني تم حفظها: ${songs.size}")
+        songs
     }
 
     fun scanSingleFile(filePath: String): SongEntity? {
@@ -61,8 +66,11 @@ class MediaScanner(private val context: Context) {
             val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
             val duration = durationStr?.toLongOrNull() ?: 0L
             
-            // Only add songs longer than 30 seconds
-            if (duration < 30_000L) return null
+            // Only ignore corrupted/empty files
+            if (duration <= 0L) {
+                Log.w("SCAN_FILTER", "تم تجاهل: ${file.name} — المدة: $duration ms")
+                return null
+            }
             
             SongEntity(
                 id = file.absolutePath.hashCode().toLong(),

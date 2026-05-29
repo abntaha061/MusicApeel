@@ -195,36 +195,43 @@ class MusicService : MediaSessionService() {
         try {
             // Check list change, increment prior listening stats
             checkAndIncrementPlayCount()
-
             _playlist.value = songs
-            
-            player.clearMediaItems()
-            songs.forEach { song ->
-                val mediaUri = if (song.filePath.startsWith("assets:///")) {
-                    UriUtil.getAssetUri(song.filePath)
-                } else {
-                    val file = java.io.File(song.filePath)
-                    if (file.exists()) {
-                        android.net.Uri.fromFile(file).toString()
-                    } else {
-                        song.filePath
+
+            serviceScope.launch {
+                // Background processing of Uri and MediaItem mapping
+                val mediaItems = withContext(Dispatchers.IO) {
+                    songs.map { song ->
+                        val mediaUri = if (song.filePath.startsWith("assets:///")) {
+                            UriUtil.getAssetUri(song.filePath)
+                        } else {
+                            val file = java.io.File(song.filePath)
+                            if (file.exists()) {
+                                android.net.Uri.fromFile(file).toString()
+                            } else {
+                                song.filePath
+                            }
+                        }
+                        createMediaItem(song, mediaUri)
                     }
                 }
-                player.addMediaItem(createMediaItem(song, mediaUri))
-            }
 
-            if (startIndex in songs.indices) {
-                player.seekTo(startIndex, 0L)
-                player.prepare()
-                player.play()
+                // Apply on Main thread in a single bulk operation
+                player.clearMediaItems()
+                player.setMediaItems(mediaItems)
 
-                val selectedSong = songs[startIndex]
-                _currentSong.value = selectedSong
-                
-                // Track listen stats initiation
-                songStartTime = System.currentTimeMillis()
-                currentSongId = selectedSong.id
-                currentSongDuration = selectedSong.duration
+                if (startIndex in songs.indices) {
+                    player.seekTo(startIndex, 0L)
+                    player.prepare()
+                    player.play()
+
+                    val selectedSong = songs[startIndex]
+                    _currentSong.value = selectedSong
+                    
+                    // Track listen stats initiation
+                    songStartTime = System.currentTimeMillis()
+                    currentSongId = selectedSong.id
+                    currentSongDuration = selectedSong.duration
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()

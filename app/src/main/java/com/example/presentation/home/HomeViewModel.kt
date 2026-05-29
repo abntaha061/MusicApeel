@@ -138,8 +138,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun checkAndStartLibrarySync() {
-        if (hasCheckedDatabase) return
+        if (hasCheckedDatabase) {
+            android.util.Log.d("SCAN_TRIGGER", "تجاهل — تم التهيئة مسبقاً")
+            return
+        }
         hasCheckedDatabase = true
+        android.util.Log.d("SCAN_TRIGGER", "=== بدء checkAndStartLibrarySync ===")
         syncLibrary(force = false)
         startWatchingMusicFolder()
     }
@@ -150,13 +154,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun syncLibrary(force: Boolean = false) {
+        val callerStack = Thread.currentThread().stackTrace.getOrNull(3)?.toString() ?: "unknown"
+        android.util.Log.d("SCAN_TRIGGER", "=== بدء Scan === من: $callerStack (force=$force)")
+        
         if (isSyncInProgress.getAndSet(true)) {
+            android.util.Log.d("SCAN_TRIGGER", "تجاهل Scan — جاري بالفعل لتجنب التكرار")
             return // Already syncing. Skip duplicate scan to prevent CPU spikes and freezing.
         }
         _isSyncing.value = true
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val dbCount = songDao.getSongCount()
+                android.util.Log.d("DB_CHECK", "عدد الأغاني في DB: $dbCount")
+                
                 val isFirstScanDone = getApplication<Application>()
                     .getSharedPreferences("music_prefs", android.content.Context.MODE_PRIVATE)
                     .getBoolean("first_scan_done", false)
@@ -165,6 +175,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 // 1. Initial installation when DB is empty OR first scan flag is false
                 // 2. User manually triggers refresh (force == true)
                 if (dbCount == 0 || !isFirstScanDone || force) {
+                    if (dbCount == 0) {
+                        android.util.Log.d("SCAN_TRIGGER", "DB فارغة — بدء Scan أول مرة")
+                    } else {
+                        android.util.Log.d("SCAN_TRIGGER", "DB فيها $dbCount أغنية — ولكن مع ذلك سيتم الـ Scan بسبب الفورس أو العلم (force=$force, isFirstScanDone=$isFirstScanDone)")
+                    }
                     val scanned = mediaScanner.scanDevice()
                     
                     // Retrieve existing library to preserve user stats (play counts & timestamps)
@@ -195,6 +210,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         .putLong("last_scan_time", System.currentTimeMillis())
                         .apply()
                 } else {
+                    android.util.Log.d("SCAN_TRIGGER", "DB فيها $dbCount أغنية — لا Scan")
                     // Under the "One-time Scan" architecture, automatic/incremental scans are completely skipped
                     // to prevent CPU hogging, heating, and lag. No disk I/O operations are made!
                 }
