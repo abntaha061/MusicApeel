@@ -648,6 +648,25 @@ fun AppContent(
                 }
             }
 
+            // D. Artist Profile Screen Overlay
+            if (selectedArtistForProfile != null) {
+                ArtistProfileScreen(
+                    artistName = selectedArtistForProfile!!,
+                    allSongs = allSongs,
+                    fontFamily = CairoBold,
+                    onBack = { selectedArtistForProfile = null },
+                    onSongSelected = { songs, index ->
+                        musicService?.playSongList(songs, index)
+                    },
+                    onAddToNext = { song ->
+                        musicService?.addToNext(song)
+                    },
+                    onViewArtist = { artistName ->
+                        selectedArtistForProfile = artistName
+                    }
+                )
+            }
+
             // C. Fullscreen Music Player animated modal slide up transition
             AnimatedVisibility(
                 visible = isPlayerExpanded,
@@ -671,25 +690,6 @@ fun AppContent(
                     onSeek = { musicService?.seekTo(it) },
                     onCollapseClicked = { isPlayerExpanded = false },
                     musicService = musicService
-                )
-            }
-
-            // D. Artist Profile Screen Overlay
-            if (selectedArtistForProfile != null) {
-                ArtistProfileScreen(
-                    artistName = selectedArtistForProfile!!,
-                    allSongs = allSongs,
-                    fontFamily = CairoBold,
-                    onBack = { selectedArtistForProfile = null },
-                    onSongSelected = { songs, index ->
-                        musicService?.playSongList(songs, index)
-                    },
-                    onAddToNext = { song ->
-                        musicService?.addToNext(song)
-                    },
-                    onViewArtist = { artistName ->
-                        selectedArtistForProfile = artistName
-                    }
                 )
             }
         }

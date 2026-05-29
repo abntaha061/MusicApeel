@@ -27,6 +27,9 @@ interface SongDao {
     @Query("SELECT * FROM songs ORDER BY title ASC")
     fun getAllSongs(): Flow<List<SongEntity>>
 
+    @Query("SELECT * FROM songs WHERE artist = :artist ORDER BY title ASC")
+    fun getSongsByArtist(artist: String): Flow<List<SongEntity>>
+
     @Query("""
         SELECT artist as name, COUNT(*) as songCount, MIN(file_path) as sampleFilePath
         FROM songs

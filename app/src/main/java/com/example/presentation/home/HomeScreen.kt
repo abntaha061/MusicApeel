@@ -144,6 +144,7 @@ fun HomeScreen(
                         MostPlayedCard(
                             song = song,
                             onClick = { onSongSelected(listOf(song), 0) },
+                            onArtistClick = { onArtistSelected(song.artist) },
                             fontFamily = CairoBold
                         )
                     }
@@ -201,6 +202,9 @@ fun HomeScreen(
                                         onClick = {
                                             val index = recentlyPlayed.indexOf(song)
                                             onSongSelected(recentlyPlayed, index)
+                                        },
+                                        onArtistClick = {
+                                            onArtistSelected(song.artist)
                                         }
                                     )
                                 }
@@ -233,6 +237,9 @@ fun HomeScreen(
                                         onClick = {
                                             val index = recentlyAdded.indexOf(song)
                                             onSongSelected(recentlyAdded, index)
+                                        },
+                                        onArtistClick = {
+                                            onArtistSelected(song.artist)
                                         }
                                     )
                                 }
@@ -265,6 +272,9 @@ fun HomeScreen(
                                         onClick = {
                                             val index = mostPlayed.indexOf(song)
                                             onSongSelected(mostPlayed, index)
+                                        },
+                                        onArtistClick = {
+                                            onArtistSelected(song.artist)
                                         }
                                     )
                                 }
@@ -293,12 +303,12 @@ fun HomeScreen(
 fun PlaylistItemCard(
     song: SongEntity,
     fontFamily: FontFamily,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onArtistClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .width(120.dp)
-            .clickable(onClick = onClick)
     ) {
         // Frosted border premium cover with customized AlbumArtImage
         AlbumArtImage(
@@ -310,7 +320,8 @@ fun PlaylistItemCard(
                     width = 0.5.dp,
                     color = Color.White.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(14.dp)
-                ),
+                )
+                .clickable(onClick = onClick),
             cornerRadius = 14.dp,
             iconSize = 38.dp
         )
@@ -324,16 +335,18 @@ fun PlaylistItemCard(
             fontWeight = FontWeight.Bold,
             fontFamily = fontFamily,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.clickable(onClick = onClick)
         )
         Text(
             text = song.artist,
-            color = Color.White.copy(alpha = 0.5f),
+            color = Color(0xFF4FC3F7),
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             fontFamily = fontFamily,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.clickable(onClick = onArtistClick)
         )
     }
 }
@@ -667,7 +680,7 @@ fun formatListeningTime(ms: Long): String {
 }
 
 @Composable
-fun MostPlayedCard(song: SongEntity, onClick: () -> Unit, fontFamily: FontFamily) {
+fun MostPlayedCard(song: SongEntity, onClick: () -> Unit, onArtistClick: () -> Unit, fontFamily: FontFamily) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -675,7 +688,6 @@ fun MostPlayedCard(song: SongEntity, onClick: () -> Unit, fontFamily: FontFamily
             .clip(RoundedCornerShape(18.dp))
             .background(Color.White.copy(0.08f))
             .border(0.5.dp, Color.White.copy(0.15f), RoundedCornerShape(18.dp))
-            .clickable { onClick() }
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.End
@@ -698,15 +710,17 @@ fun MostPlayedCard(song: SongEntity, onClick: () -> Unit, fontFamily: FontFamily
                 fontWeight = FontWeight.Bold,
                 fontFamily = fontFamily,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.clickable { onClick() }
             )
             Text(
                 song.artist,
-                color = Color.White.copy(0.6f),
+                color = Color(0xFF4FC3F7),
                 fontSize = 13.sp,
                 fontFamily = fontFamily,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.clickable { onArtistClick() }
             )
             Spacer(Modifier.height(4.dp))
             Text(
@@ -722,7 +736,7 @@ fun MostPlayedCard(song: SongEntity, onClick: () -> Unit, fontFamily: FontFamily
         AlbumArtImage(
             songId = song.id,
             filePath = song.filePath,
-            modifier = Modifier.size(70.dp),
+            modifier = Modifier.size(70.dp).clickable { onClick() },
             cornerRadius = 12.dp
         )
     }

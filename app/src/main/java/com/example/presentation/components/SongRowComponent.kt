@@ -74,7 +74,7 @@ fun SongRowComponent(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = song.artist,
-                color = Color.White.copy(alpha = 0.5f),
+                color = Color(0xFF4FC3F7),
                 fontSize = 12.sp,
                 fontFamily = fontFamily,
                 maxLines = 1,
