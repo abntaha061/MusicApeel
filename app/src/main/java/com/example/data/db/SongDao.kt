@@ -18,7 +18,8 @@ data class LibraryStats(
     val totalSongs: Int,
     val totalDurationMs: Long,
     val totalArtists: Int,
-    val totalAlbums: Int
+    val totalAlbums: Int,
+    val totalListeningTimeMs: Long
 )
 
 @Dao
@@ -46,6 +47,9 @@ interface SongDao {
 
     @Query("SELECT COUNT(DISTINCT album) FROM songs")
     suspend fun getTotalAlbums(): Int
+
+    @Query("SELECT COALESCE(SUM(play_count * duration), 0) FROM songs")
+    suspend fun getTotalListeningTime(): Long
 
     @Query("SELECT * FROM songs ORDER BY play_count DESC LIMIT 1")
     fun getMostPlayedSong(): Flow<SongEntity?>

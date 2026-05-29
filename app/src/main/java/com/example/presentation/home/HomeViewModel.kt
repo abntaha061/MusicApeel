@@ -63,10 +63,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             totalSongs = songDao.getTotalSongs(),
             totalDurationMs = songDao.getTotalDuration(),
             totalArtists = songDao.getTotalArtists(),
-            totalAlbums = songDao.getTotalAlbums()
+            totalAlbums = songDao.getTotalAlbums(),
+            totalListeningTimeMs = songDao.getTotalListeningTime()
         )
     }.flowOn(Dispatchers.IO)
-     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LibraryStats(0, 0, 0, 0))
+     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LibraryStats(0, 0, 0, 0, 0))
 
     val artistsForYou: StateFlow<List<ArtistWithArt>> = allSongs.map {
         val allArtists = songDao.getAllArtistsWithSongs()

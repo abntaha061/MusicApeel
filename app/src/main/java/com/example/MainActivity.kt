@@ -495,6 +495,7 @@ fun AppContent(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .statusBarsPadding()
                                     .padding(horizontal = 20.dp, vertical = 16.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically

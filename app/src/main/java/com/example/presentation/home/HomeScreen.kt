@@ -462,45 +462,115 @@ fun LibraryStatsCard(stats: LibraryStats, fontFamily: FontFamily) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.White.copy(0.08f))
-            .border(0.5.dp, Color.White.copy(0.15f), RoundedCornerShape(20.dp))
-            .padding(20.dp),
-        horizontalAlignment = Alignment.End
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // العنوان
-        Text(
-            "مكتبتك الموسيقية",
-            color = Color.White,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = fontFamily
-        )
-
-        Spacer(Modifier.height(4.dp))
-
-        // المدة الإجمالية
-        Text(
-            formatTotalDuration(stats.totalDurationMs),
-            color = Color.White.copy(0.7f),
-            fontSize = 14.sp,
-            fontFamily = fontFamily
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // الإحصائيات في صف واحد مع فواصل
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+        // بطاقة مكتبتك
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.White.copy(0.08f))
+                .border(0.5.dp, Color.White.copy(0.15f), RoundedCornerShape(20.dp))
+                .padding(18.dp),
+            horizontalAlignment = Alignment.End
         ) {
-            StatItem(value = "${stats.totalSongs}", label = "أغنية", fontFamily = fontFamily)
-            StatDivider()
-            StatItem(value = "${stats.totalArtists}", label = "فنان", fontFamily = fontFamily)
-            StatDivider()
-            StatItem(value = "${stats.totalAlbums}", label = "ألبوم", fontFamily = fontFamily)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "مكتبتك",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = fontFamily
+                )
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Rounded.List,
+                    contentDescription = null,
+                    tint = Color(0xFF1E88E5),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(Modifier.height(6.dp))
+
+            // المدة الإجمالية
+            Text(
+                formatArabicTotalDuration(stats.totalDurationMs),
+                color = Color.White.copy(0.7f),
+                fontSize = 13.sp,
+                fontFamily = fontFamily
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            // الإحصائيات مع فواصل
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                StatItem(value = "${stats.totalSongs}", label = "أغنية", fontFamily = fontFamily)
+                StatDivider()
+                StatItem(value = "${stats.totalArtists}", label = "فنان", fontFamily = fontFamily)
+                StatDivider()
+                StatItem(value = "${stats.totalAlbums}", label = "ألبوم", fontFamily = fontFamily)
+            }
+        }
+
+        // بطاقة استماعك
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.White.copy(0.08f))
+                .border(0.5.dp, Color.White.copy(0.15f), RoundedCornerShape(20.dp))
+                .padding(18.dp),
+            horizontalAlignment = Alignment.End
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "استماعك التراكمي",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = fontFamily
+                )
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Rounded.Headphones,
+                    contentDescription = null,
+                    tint = Color(0xFFE91E63),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Text(
+                "إجمالي وقت الاستماع الفعلي",
+                color = Color.White.copy(0.55f),
+                fontSize = 12.sp,
+                fontFamily = fontFamily
+            )
+
+            Spacer(Modifier.height(2.dp))
+
+            Text(
+                formatListeningTime(stats.totalListeningTimeMs),
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = fontFamily
+            )
         }
     }
 }
@@ -539,6 +609,28 @@ fun formatTotalDuration(ms: Long): String {
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
     return "${hours}h ${minutes}m"
+}
+
+fun formatArabicTotalDuration(ms: Long): String {
+    val totalMinutes = ms / 1000 / 60
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return if (hours > 0) {
+        "مدة الأغاني الإجمالية: $hours ساعة و $minutes دقيقة"
+    } else {
+        "مدة الأغاني الإجمالية: $minutes دقيقة"
+    }
+}
+
+fun formatListeningTime(ms: Long): String {
+    val totalMinutes = ms / 1000 / 60
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return if (hours > 0) {
+        "$hours (ساعة) و $minutes (دقيقة)"
+    } else {
+        "$minutes دقيقة"
+    }
 }
 
 @Composable
