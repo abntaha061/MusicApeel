@@ -87,14 +87,24 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             "/sdcard/Music"
         ).forEach { path ->
             try {
-                val observer = com.example.data.scanner.MusicFileObserver(path) { newFilePath ->
-                    viewModelScope.launch(Dispatchers.IO) {
-                        addSingleSong(newFilePath)
-                    }
+                val dir = java.io.File(path)
+                if (!dir.exists()) {
+                    dir.mkdirs()
                 }
-                observer.startWatching()
-                observers.add(observer)
-                android.util.Log.d("SCANNER", "Started watching $path")
+                if (dir.exists() && dir.isDirectory) {
+                    val observer = com.example.data.scanner.MusicFileObserver(path) { newFilePath ->
+                        viewModelScope.launch(Dispatchers.IO) {
+                            // Delay safely in the background thread to let file finish writing
+                            kotlinx.coroutines.delay(2000)
+                            addSingleSong(newFilePath)
+                        }
+                    }
+                    observer.startWatching()
+                    observers.add(observer)
+                    android.util.Log.d("SCANNER", "Started watching $path")
+                } else {
+                    android.util.Log.w("SCANNER", "Path $path does not exist and could not be created")
+                }
             } catch (e: Exception) {
                 android.util.Log.e("SCANNER", "Failed to watch $path", e)
             }

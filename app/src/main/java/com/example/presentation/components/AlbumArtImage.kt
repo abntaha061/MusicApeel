@@ -17,7 +17,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil.compose.SubcomposeAsyncImage
+import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import java.io.File
 
@@ -33,12 +33,15 @@ fun AlbumArtImage(
     val model = remember(filePath) {
         ImageRequest.Builder(context)
             .data(File(filePath))
-            .size(300, 300) // downscale automatically for smooth lag-free performance
+            .size(120, 120) // 120x120 is perfect downscaled thumbnail size
             .memoryCacheKey(filePath)
             .diskCacheKey(filePath)
-            .crossfade(200)
+            .crossfade(150)
             .build()
     }
+
+    var isError by remember(filePath) { mutableStateOf(false) }
+    var isLoading by remember(filePath) { mutableStateOf(true) }
 
     Box(
         modifier = modifier
@@ -46,33 +49,38 @@ fun AlbumArtImage(
             .background(Color.White.copy(alpha = 0.08f)),
         contentAlignment = Alignment.Center
     ) {
-        SubcomposeAsyncImage(
-            model = model,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            error = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.White.copy(alpha = 0.08f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.MusicNote,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.4f),
-                        modifier = Modifier.size(iconSize)
-                    )
+        if (isError) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White.copy(alpha = 0.08f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.MusicNote,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.4f),
+                    modifier = Modifier.size(iconSize)
+                )
+            }
+        } else {
+            AsyncImage(
+                model = model,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                onState = { state ->
+                    isLoading = state is coil.compose.AsyncImagePainter.State.Loading
+                    isError = state is coil.compose.AsyncImagePainter.State.Error
                 }
-            },
-            loading = {
+            )
+            if (isLoading) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Color.White.copy(alpha = 0.05f))
                 )
             }
-        )
+        }
     }
 }
