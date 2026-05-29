@@ -10,74 +10,51 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.presentation.components.AlbumArtImage
-import com.example.data.db.SongEntity
+import com.example.presentation.components.AlbumProfileScreen
+import com.example.presentation.components.ArtistProfileScreen
 import com.example.presentation.components.MiniPlayer
-import com.example.presentation.components.AuroraBackground
 import com.example.presentation.home.HomeScreen
 import com.example.presentation.home.HomeViewModel
-import com.example.presentation.home.formatDuration
 import com.example.presentation.player.PlayerScreen
 import com.example.presentation.player.PlayerViewModel
 import com.example.service.MusicService
-import com.example.ui.theme.MyApplicationTheme
-import com.example.presentation.components.SongRowComponent
-import com.example.presentation.components.ArtistProfileScreen
 
 class MainActivity : ComponentActivity() {
 
-    private val homeViewModel by lazy {
-        androidx.lifecycle.ViewModelProvider(this)[HomeViewModel::class.java]
-    }
+    private val homeViewModel: HomeViewModel by viewModels()
+    private val playerViewModel: PlayerViewModel by viewModels()
 
-    private var musicService: MusicService? by mutableStateOf(null)
+    private var musicService: MusicService? = null
     private var isBound by mutableStateOf(false)
 
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as MusicService.MusicBinder
             musicService = binder.getService()
             isBound = true
         }
 
-        override fun onServiceDisconnected(arg0: ComponentName) {
+        override fun onServiceDisconnected(name: ComponentName?) {
             musicService = null
             isBound = false
         }
@@ -85,979 +62,231 @@ class MainActivity : ComponentActivity() {
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_AUDIO
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-        if (results[storagePermission] == true) {
-            homeViewModel.checkAndStartLibrarySync()
+    ) { permissions ->
+        val granted = permissions.entries.all { it.value }
+        if (granted) {
+            homeViewModel.syncLibrary(force = false)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Bind the background Music Service
-        val intent = Intent(this, MusicService::class.java)
-        startService(intent)
-        bindService(intent, connection, Context.BIND_AUTO_CREATE)
-
-        enableEdgeToEdge()
-
-        // Handle permissions and trigger library sync exactly once on startup
-        checkAndRequestPermissions()
+        
+        // Start and bind playing Service
+        Intent(this, MusicService::class.java).also { intent ->
+            startService(intent)
+            bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        }
 
         setContent {
-            MyApplicationTheme {
-                // FORCE layoutDirection = LayoutDirection.Rtl Arabic-first native design
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            AppTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color(0xFF0C0E12)
+                ) {
                     AppContent(
                         musicService = musicService,
-                        context = this
+                        isBound = isBound,
+                        homeViewModel = homeViewModel,
+                        playerViewModel = playerViewModel
                     )
                 }
             }
         }
+
+        checkAndRequestPermissions()
     }
 
     private fun checkAndRequestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!android.os.Environment.isExternalStorageManager()) {
-                try {
-                    val intent = Intent(
-                        android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                        android.net.Uri.parse("package:$packageName")
-                    )
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    startActivity(intent)
-                }
-            }
-        }
-
-        val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_AUDIO
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-
-        val permissionsToRequest = mutableListOf(storagePermission)
+        val permissions = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+            permissions.add(Manifest.permission.READ_MEDIA_AUDIO)
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
-        val allGranted = permissionsToRequest.all {
+        val allGranted = permissions.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
 
         if (allGranted) {
             homeViewModel.checkAndStartLibrarySync()
         } else {
-            requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
+            requestPermissionLauncher.launch(permissions.toTypedArray())
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         if (isBound) {
-            unbindService(connection)
+            unbindService(serviceConnection)
             isBound = false
         }
     }
 }
 
-@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun AppTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            primary = Color(0xFF4FC3F7),
+            background = Color(0xFF0C0E12),
+            surface = Color(0xFF141A23)
+        ),
+        content = content
+    )
+}
+
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun AppContent(
     musicService: MusicService?,
-    context: Context
+    isBound: Boolean,
+    homeViewModel: HomeViewModel,
+    playerViewModel: PlayerViewModel
 ) {
-    val homeViewModel: HomeViewModel = viewModel()
-    val playerViewModel: PlayerViewModel = viewModel()
+    val fontFamily = FontFamily.Default // Dynamic system fallback font for flawless build stability
+    
+    // View state mappings
+    var activeTab by remember { mutableStateOf("home") } // "home", "artist_profile", "album_profile"
+    var selectedArtistName by remember { mutableStateOf("") }
+    var selectedAlbumName by remember { mutableStateOf("") }
+    var isPlayerExpanded by remember { mutableStateOf(false) }
 
+    // Service streams collection
+    val currentSong = musicService?.currentSong?.collectAsState()?.value
+    val isPlaying = musicService?.isPlaying?.collectAsState()?.value ?: false
+    val currentPosition = musicService?.currentPosition?.collectAsState()?.value ?: 0L
+
+    // ViewModel collect streams
     val allSongs by homeViewModel.allSongs.collectAsState()
+    val recentlyPlayed by homeViewModel.recentlyPlayed.collectAsState()
+    val stats by homeViewModel.libraryStats.collectAsState()
+    val sortOrder by homeViewModel.sortOrder.collectAsState()
     val isSyncing by homeViewModel.isSyncing.collectAsState()
 
-    // Observe service playback state flows safely and unconditionally
-    val currentSongFlow = remember(musicService) { musicService?.currentSong ?: kotlinx.coroutines.flow.MutableStateFlow(null) }
-    val currentSong by currentSongFlow.collectAsState()
+    val lyrics by playerViewModel.lyrics.collectAsState()
+    val dominantColors by playerViewModel.dominantColors.collectAsState()
 
-    val isPlayingFlow = remember(musicService) { musicService?.isPlaying ?: kotlinx.coroutines.flow.MutableStateFlow(false) }
-    val isPlaying by isPlayingFlow.collectAsState()
-
-    val currentPositionFlow = remember(musicService) { musicService?.currentPosition ?: kotlinx.coroutines.flow.MutableStateFlow(0L) }
-    val currentPosition by currentPositionFlow.collectAsState()
-
+    // Side effect triggers when playing song changes
     LaunchedEffect(currentSong) {
         if (currentSong != null) {
             playerViewModel.updateSong(currentSong)
         }
     }
 
-    var selectedTab by remember { mutableStateOf("home") }
-    var isPlayerExpanded by remember { mutableStateOf(false) }
-    var showAllSongsScreen by remember { mutableStateOf(false) }
-    var showSortBottomSheet by remember { mutableStateOf(false) }
-    val sortOrder by homeViewModel.sortOrder.collectAsState()
-    var selectedArtistForProfile by remember { mutableStateOf<String?>(null) }
-    var selectedAlbumForProfile by remember { mutableStateOf<String?>(null) }
-
-    // Search view states
-    var searchQuery by remember { mutableStateOf("") }
-
-    // Unified Arabic safe typeface Font
-    val CairoBold = FontFamily.SansSerif
-
-    val activity = context as? android.app.Activity
-    var backPressedOnce by remember { mutableStateOf(false) }
-
-    BackHandler(enabled = true) {
-        if (isPlayerExpanded) {
-            isPlayerExpanded = false
-        } else if (selectedArtistForProfile != null) {
-            selectedArtistForProfile = null
-        } else if (selectedAlbumForProfile != null) {
-            selectedAlbumForProfile = null
-        } else if (showAllSongsScreen) {
-            showAllSongsScreen = false
-        } else {
-            when (selectedTab) {
-                "search", "library" -> {
-                    selectedTab = "home"
-                }
-                "home" -> {
-                    if (backPressedOnce) {
-                        activity?.finish()
-                    } else {
-                        backPressedOnce = true
-                        android.widget.Toast.makeText(context, "اضغط مرة أخرى للخروج", android.widget.Toast.LENGTH_SHORT).show()
-                        activity?.window?.decorView?.postDelayed({
-                            backPressedOnce = false
-                        }, 2000L)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Main Switcher Layout Screen Pane
+            Box(modifier = Modifier.weight(1f)) {
+                when (activeTab) {
+                    "home" -> {
+                        HomeScreen(
+                            allSongs = listOf(allSongs),
+                            allSongsDirect = allSongs,
+                            recentlyPlayed = recentlyPlayed,
+                            stats = stats,
+                            sortOrder = sortOrder,
+                            isSyncing = isSyncing,
+                            fontFamily = fontFamily,
+                            onSetSortOrder = { homeViewModel.setSortOrder(it) },
+                            onPlaySongList = { list, index ->
+                                musicService?.playSongList(list, index)
+                            },
+                            onAddToNext = { song ->
+                                musicService?.addToNext(song)
+                            },
+                            onViewArtist = { artist ->
+                                selectedArtistName = artist
+                                activeTab = "artist_profile"
+                            },
+                            onViewAlbum = { album ->
+                                selectedAlbumName = album
+                                activeTab = "album_profile"
+                            },
+                            onForceSync = { homeViewModel.syncLibrary(force = true) }
+                        )
                     }
-                }
-            }
-        }
-    }
-
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            if (!isPlayerExpanded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.Transparent)
-                ) {
-                    // A. Persistent Mini Player floating overlay above Navigation Bar
-                    if (currentSong != null) {
-                        MiniPlayer(
-                            currentSong = currentSong,
-                            isPlaying = isPlaying,
-                            currentPositionMs = currentPosition,
-                            onPlayPauseClicked = { musicService?.togglePlayPause() },
-                            onNextClicked = { musicService?.playNext() },
-                            onPreviousClicked = { musicService?.playPrevious() },
-                            onMiniPlayerClicked = { isPlayerExpanded = true }
+                    "artist_profile" -> {
+                        ArtistProfileScreen(
+                            artistName = selectedArtistName,
+                            allSongs = allSongs,
+                            fontFamily = fontFamily,
+                            onBack = { activeTab = "home" },
+                            onPlaySongList = { list, index ->
+                                musicService?.playSongList(list, index)
+                            },
+                            onAddToNext = { song ->
+                                musicService?.addToNext(song)
+                            }
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
                     }
-
-                    // B. Translucent Glossy Bottom Navigation Bar
-                    NavigationBar(
-                        containerColor = Color(0xFF0C0C0D).copy(alpha = 0.94f),
-                        tonalElevation = 0.dp,
-                        modifier = Modifier
-                            .border(
-                                width = 0.5.dp,
-                                brush = Brush.verticalGradient(
-                                    listOf(Color.White.copy(alpha = 0.10f), Color.Transparent)
-                                ),
-                                shape = androidx.compose.ui.graphics.RectangleShape
-                            )
-                    ) {
-                        NavigationBarItem(
-                            selected = selectedTab == "home",
-                            onClick = {
-                                selectedTab = "home"
-                                selectedArtistForProfile = null
-                                selectedAlbumForProfile = null
-                                showAllSongsScreen = false
+                    "album_profile" -> {
+                        AlbumProfileScreen(
+                            albumName = selectedAlbumName,
+                            allSongs = allSongs,
+                            fontFamily = fontFamily,
+                            onBack = { activeTab = "home" },
+                            onPlaySongList = { list, index ->
+                                musicService?.playSongList(list, index)
                             },
-                            icon = { Icon(Icons.Rounded.Home, contentDescription = null) },
-                            label = { Text("الرئيسية", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFF1E88E5),
-                                selectedTextColor = Color(0xFF1E88E5),
-                                unselectedIconColor = Color.White.copy(alpha = 0.45f),
-                                unselectedTextColor = Color.White.copy(alpha = 0.45f),
-                                indicatorColor = Color.White.copy(alpha = 0.06f)
-                            )
-                        )
-
-                        NavigationBarItem(
-                            selected = selectedTab == "search",
-                            onClick = {
-                                selectedTab = "search"
-                                selectedArtistForProfile = null
-                                selectedAlbumForProfile = null
-                                showAllSongsScreen = false
-                            },
-                            icon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                            label = { Text("البحث", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFF1E88E5),
-                                selectedTextColor = Color(0xFF1E88E5),
-                                unselectedIconColor = Color.White.copy(alpha = 0.45f),
-                                unselectedTextColor = Color.White.copy(alpha = 0.45f),
-                                indicatorColor = Color.White.copy(alpha = 0.06f)
-                            )
-                        )
-
-                        NavigationBarItem(
-                            selected = selectedTab == "library",
-                            onClick = {
-                                selectedTab = "library"
-                                selectedArtistForProfile = null
-                                selectedAlbumForProfile = null
-                                showAllSongsScreen = false
-                            },
-                            icon = { Icon(Icons.Rounded.LibraryMusic, contentDescription = null) },
-                            label = { Text("مكتبتي", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFF1E88E5),
-                                selectedTextColor = Color(0xFF1E88E5),
-                                unselectedIconColor = Color.White.copy(alpha = 0.45f),
-                                unselectedTextColor = Color.White.copy(alpha = 0.45f),
-                                indicatorColor = Color.White.copy(alpha = 0.06f)
-                            )
+                            onAddToNext = { song ->
+                                musicService?.addToNext(song)
+                            }
                         )
                     }
                 }
             }
-        }
-    ) { innerPadding ->
-        val dominantColors by playerViewModel.dominantColors.collectAsState()
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = if (isPlayerExpanded) 0.dp else innerPadding.calculateBottomPadding())
-        ) {
-            // Draw beautiful backgrounds behind routing screens
+            // Bottom Mini Player Overlay spacer offset padding so list elements are not cut off
             if (currentSong != null) {
-                AuroraBackground(
-                    dominantColors = dominantColors,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFF070708))
-                )
+                Spacer(modifier = Modifier.height(76.dp))
             }
+        }
 
-            // Screen router
-            when (selectedTab) {
-                "home" -> HomeScreen(
-                    homeViewModel = homeViewModel,
-                    onSongSelected = { songs, index ->
-                        musicService?.playSongList(songs, index)
-                    },
-                    onArtistSelected = { artistName ->
-                        selectedArtistForProfile = artistName
-                    }
-                )
-
-                "search" -> {
-                    // Fully implemented Local Search Page with Live Filtering
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.45f))
-                            .padding(20.dp)
-                    ) {
-                        Text(
-                            text = "البحث الموسيقي",
-                            color = Color.White,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = CairoBold,
-                            modifier = Modifier.padding(top = 16.dp, bottom = 12.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = { Text("ابحث عن أغنية، فنان أو ألبوم...", color = Color.White.copy(alpha = 0.4f), fontFamily = CairoBold) },
-                            singleLine = true,
-                            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.4f)) },
-                            trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { searchQuery = "" }) {
-                                        Icon(Icons.Rounded.Close, contentDescription = "مسح", tint = Color.White)
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.05f)),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF1E88E5),
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // Fuzzy and direct search classification
-                        val matchedArtists = remember(allSongs, searchQuery) {
-                            if (searchQuery.isBlank()) emptyList() else {
-                                allSongs.flatMap { com.example.presentation.components.splitArtists(it.artist) }
-                                    .map { it.trim() }
-                                    .filter { it.isNotEmpty() }
-                                    .distinct()
-                                    .filter { it.contains(searchQuery, ignoreCase = true) }
-                                    .map { name ->
-                                        val artistSongs = allSongs.filter { s ->
-                                            com.example.presentation.components.splitArtists(s.artist).any { it.equals(name, ignoreCase = true) }
-                                        }
-                                        val firstSong = artistSongs.firstOrNull()
-                                        ArtistSearchItem(
-                                            name = name,
-                                            songCount = artistSongs.size,
-                                            sampleSongId = firstSong?.id ?: 0L,
-                                            sampleFilePath = firstSong?.filePath ?: ""
-                                        )
-                                    }
-                            }
-                        }
-
-                        val matchedAlbums = remember(allSongs, searchQuery) {
-                            if (searchQuery.isBlank()) emptyList() else {
-                                allSongs.map { it.album.trim() }
-                                    .filter { it.isNotEmpty() && !it.equals("ألبوم غير معروف", ignoreCase = true) && !it.equals("Unknown Album", ignoreCase = true) }
-                                    .distinct()
-                                    .filter { it.contains(searchQuery, ignoreCase = true) }
-                                    .map { albumName ->
-                                        val albumSongs = allSongs.filter { it.album.equals(albumName, ignoreCase = true) }
-                                        val firstSong = albumSongs.firstOrNull()
-                                        AlbumSearchItem(
-                                            name = albumName,
-                                            artist = firstSong?.artist ?: "غير معروف",
-                                            songCount = albumSongs.size,
-                                            sampleSongId = firstSong?.id ?: 0L,
-                                            sampleFilePath = firstSong?.filePath ?: ""
-                                        )
-                                    }
-                            }
-                        }
-
-                        val filteredSongs = remember(allSongs, searchQuery) {
-                            if (searchQuery.isBlank()) {
-                                emptyList()
-                            } else {
-                                allSongs.filter {
-                                    it.title.contains(searchQuery, ignoreCase = true) ||
-                                            it.artist.contains(searchQuery, ignoreCase = true) ||
-                                            it.album.contains(searchQuery, ignoreCase = true)
-                                }
-                            }
-                        }
-
-                        if (searchQuery.isBlank()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        Icons.Rounded.Search,
-                                        null,
-                                        tint = Color.White.copy(alpha = 0.3f),
-                                        modifier = Modifier.size(56.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(
-                                        text = "ابحث عن أي أغنية",
-                                        color = Color.White.copy(alpha = 0.4f),
-                                        fontFamily = CairoBold,
-                                        fontSize = 16.sp,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
-                        } else if (matchedArtists.isEmpty() && matchedAlbums.isEmpty() && filteredSongs.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "لا توجد نتائج لـ \"$searchQuery\"",
-                                    color = Color.White.copy(alpha = 0.4f),
-                                    fontFamily = CairoBold,
-                                    fontSize = 15.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        } else {
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(16.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                // 1. Artists Section
-                                if (matchedArtists.isNotEmpty()) {
-                                    item {
-                                        Text(
-                                            text = "من نتائج الفنانين",
-                                            color = Color.White,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = CairoBold,
-                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-                                        )
-                                        LazyRow(
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            contentPadding = PaddingValues(horizontal = 4.dp)
-                                        ) {
-                                            items(matchedArtists) { artist ->
-                                                ArtistSearchCard(
-                                                    artist = artist,
-                                                    fontFamily = CairoBold,
-                                                    onClick = {
-                                                        selectedArtistForProfile = artist.name
-                                                        isPlayerExpanded = false
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // 2. Albums Section
-                                if (matchedAlbums.isNotEmpty()) {
-                                    item {
-                                        Text(
-                                            text = "من نتائج الألبومات",
-                                            color = Color.White,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = CairoBold,
-                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-                                        )
-                                        LazyRow(
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            contentPadding = PaddingValues(horizontal = 4.dp)
-                                        ) {
-                                            items(matchedAlbums) { album ->
-                                                AlbumSearchCard(
-                                                    album = album,
-                                                    fontFamily = CairoBold,
-                                                    onClick = {
-                                                        selectedAlbumForProfile = album.name
-                                                        isPlayerExpanded = false
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // 3. Songs Section
-                                if (filteredSongs.isNotEmpty()) {
-                                    item {
-                                        Text(
-                                            text = "جميع الأغاني المطابقة",
-                                            color = Color.White,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = CairoBold,
-                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-                                        )
-                                    }
-                                    itemsIndexed(
-                                        items = filteredSongs,
-                                        key = { _, song -> song.id }
-                                    ) { index, song ->
-                                        SongRowComponent(
-                                            song = song,
-                                            fontFamily = CairoBold,
-                                            onClick = {
-                                                musicService?.playSongList(filteredSongs, index)
-                                            },
-                                            onAddToNext = {
-                                                musicService?.addToNext(song)
-                                            },
-                                            onViewArtist = { artistName ->
-                                                selectedArtistForProfile = artistName
-                                                isPlayerExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                "library" -> {
-                    if (showAllSongsScreen) {
-                        // All Songs Sub-screen with back button and high quality responsive list
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.45f))
-                        ) {
-                            // Header with beautiful back button, count and sorting mechanism button
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .statusBarsPadding()
-                                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Text(
-                                        text = "${allSongs.size} أغنية",
-                                        color = Color.White,
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = CairoBold
-                                    )
-
-                                    IconButton(
-                                        onClick = { showSortBottomSheet = true },
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.White.copy(alpha = 0.08f))
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Sort,
-                                            contentDescription = "ترتيب الأغاني",
-                                            tint = Color.White
-                                        )
-                                    }
-                                }
-
-                                IconButton(
-                                    onClick = { showAllSongsScreen = false },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White.copy(0.1f))
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.ArrowBack,
-                                        contentDescription = "رجوع",
-                                        tint = Color.White
-                                    )
-                                }
-                            }
-
-                            if (allSongs.isEmpty()) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "المكتبة فارغة",
-                                        color = Color.White.copy(0.4f),
-                                        fontFamily = CairoBold
-                                    )
-                                }
-                            } else {
-                                LazyColumn(
-                                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 160.dp),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    itemsIndexed(
-                                        items = allSongs,
-                                        key = { _, song -> song.id }
-                                    ) { index, song ->
-                                        SongRowComponent(
-                                            song = song,
-                                            fontFamily = CairoBold,
-                                            onClick = {
-                                                musicService?.playSongList(allSongs, index)
-                                            },
-                                            onAddToNext = {
-                                                musicService?.addToNext(song)
-                                            },
-                                            onViewArtist = { artistName ->
-                                                selectedArtistForProfile = artistName
-                                                isPlayerExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Standard Library Stats view (NO automatic list loaded)
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.45f))
-                                .padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(24.dp)
-                        ) {
-                            item {
-                                Text(
-                                    text = "إحصائيات استماعي",
-                                    color = Color.White,
-                                    fontSize = 28.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = CairoBold,
-                                    modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
-                                )
-                                Text(
-                                    text = "ترتيب وذكاء استخدام ذوقك الموسيقي",
-                                    color = Color.White.copy(alpha = 0.5f),
-                                    fontSize = 13.sp,
-                                    fontFamily = CairoBold
-                                )
-                            }
-
-                            // ── بطاقة العداد — "585 أغنية" ──
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(18.dp))
-                                        .background(Color.White.copy(0.10f))
-                                        .border(0.5.dp, Color.White.copy(0.2f), RoundedCornerShape(18.dp))
-                                        .clickable { showAllSongsScreen = true }
-                                        .padding(20.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.ChevronLeft,
-                                            contentDescription = null,
-                                            tint = Color.White.copy(0.5f)
-                                        )
-                                        Column(horizontalAlignment = Alignment.End) {
-                                            Text(
-                                                text = "${allSongs.size} أغنية",
-                                                color = Color.White,
-                                                fontSize = 22.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = CairoBold
-                                            )
-                                            Text(
-                                                text = "اضغط لعرض المكتبة كاملة",
-                                                color = Color.White.copy(0.5f),
-                                                fontSize = 13.sp,
-                                                fontFamily = CairoBold
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Summary Statistics Card (Row) representing total performance
-                            item {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(Color.White.copy(alpha = 0.03f))
-                                            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                                            .padding(16.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(Icons.Rounded.Equalizer, null, tint = Color(0xFFD81B60), modifier = Modifier.size(32.dp))
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        val totalPlays = allSongs.sumOf { it.playCount }
-                                        Text("$totalPlays مرة", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = CairoBold)
-                                        Text("إجمالي الاستماع", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp, fontFamily = CairoBold)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // D. Artist Profile Screen Overlay
-            if (selectedArtistForProfile != null) {
-                ArtistProfileScreen(
-                    artistName = selectedArtistForProfile!!,
-                    allSongs = allSongs,
-                    fontFamily = CairoBold,
-                    onBack = { selectedArtistForProfile = null },
-                    onSongSelected = { songs, index ->
-                        musicService?.playSongList(songs, index)
-                    },
-                    onAddToNext = { song ->
-                        musicService?.addToNext(song)
-                    },
-                    onViewArtist = { artistName ->
-                        selectedArtistForProfile = artistName
-                    }
-                )
-            }
-
-            // E. Album Profile Screen Overlay
-            if (selectedAlbumForProfile != null) {
-                com.example.presentation.components.AlbumProfileScreen(
-                    albumName = selectedAlbumForProfile!!,
-                    allSongs = allSongs,
-                    fontFamily = CairoBold,
-                    onBack = { selectedAlbumForProfile = null },
-                    onSongSelected = { songs, index ->
-                        musicService?.playSongList(songs, index)
-                    },
-                    onAddToNext = { song ->
-                        musicService?.addToNext(song)
-                    },
-                    onViewArtist = { artistName ->
-                        selectedArtistForProfile = artistName
-                        selectedAlbumForProfile = null
-                    }
-                )
-            }
-
-            // C. Fullscreen Music Player animated modal slide up transition
-            AnimatedVisibility(
-                visible = isPlayerExpanded,
-                enter = slideInVertically(
-                    initialOffsetY = { it },
-                    animationSpec = tween(450)
-                ) + fadeIn(),
-                exit = slideOutVertically(
-                    targetOffsetY = { it },
-                    animationSpec = tween(400)
-                ) + fadeOut()
+        // Floating Mini Player card (collapsible slide up view)
+        if (currentSong != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
+                val progress = if (currentSong.duration > 0) currentPosition.toFloat() / currentSong.duration else 0f
+                MiniPlayer(
+                    song = currentSong,
+                    isPlaying = isPlaying,
+                    progress = progress,
+                    fontFamily = fontFamily,
+                    onTogglePlay = { musicService?.togglePlayPause() },
+                    onNext = { musicService?.next() },
+                    onClick = { isPlayerExpanded = true }
+                )
+            }
+        }
+
+        // Animated Immersive Immersive Media Player full-screen overlay
+        AnimatedVisibility(
+            visible = isPlayerExpanded && currentSong != null,
+            enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(450)) + fadeIn(animationSpec = tween(350)),
+            exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(450)) + fadeOut(animationSpec = tween(350))
+        ) {
+            if (currentSong != null) {
                 PlayerScreen(
-                    currentSong = currentSong,
+                    song = currentSong,
                     isPlaying = isPlaying,
                     currentPositionMs = currentPosition,
-                    playerViewModel = playerViewModel,
-                    onPlayPauseClicked = { musicService?.togglePlayPause() },
-                    onNextClicked = { musicService?.playNext() },
-                    onPreviousClicked = { musicService?.playPrevious() },
-                    onSeek = { musicService?.seekTo(it) },
-                    onCollapseClicked = { isPlayerExpanded = false },
-                    onViewArtist = { artistName ->
-                        selectedArtistForProfile = artistName
-                        isPlayerExpanded = false
-                    },
-                    onViewAlbum = { albumName ->
-                        selectedAlbumForProfile = albumName
-                        isPlayerExpanded = false
-                    },
-                    musicService = musicService
+                    dominantColors = dominantColors,
+                    lyrics = lyrics,
+                    fontFamily = fontFamily,
+                    onTogglePlay = { musicService?.togglePlayPause() },
+                    onNext = { musicService?.next() },
+                    onPrevious = { musicService?.previous() },
+                    onSeekTo = { targetPosition -> musicService?.seekTo(targetPosition) },
+                    onCollapse = { isPlayerExpanded = false }
                 )
             }
-
-            if (showSortBottomSheet) {
-                ModalBottomSheet(
-                    onDismissRequest = { showSortBottomSheet = false },
-                    containerColor = Color(0xFF141414),
-                    scrimColor = Color.Black.copy(alpha = 0.6f),
-                    dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(0.3f)) }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(start = 24.dp, end = 24.dp, bottom = 32.dp, top = 8.dp)
-                    ) {
-                        Text(
-                            text = "ترتيب الأغاني",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = CairoBold,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                        
-                        com.example.presentation.home.SortOrder.values().forEach { order ->
-                            val isSelected = sortOrder == order
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) Color.White.copy(0.08f) else Color.Transparent)
-                                    .clickable {
-                                        homeViewModel.setSortOrder(order)
-                                        showSortBottomSheet = false
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = order.displayName,
-                                    color = if (isSelected) Color(0xFF4FC3F7) else Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    fontFamily = CairoBold
-                                )
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Check,
-                                        contentDescription = "محدد",
-                                        tint = Color(0xFF4FC3F7),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                        }
-                    }
-                }
-            }
         }
-    }
-}
-
-// Data structures and Composables for music search results categorizations
-data class ArtistSearchItem(
-    val name: String,
-    val songCount: Int,
-    val sampleSongId: Long,
-    val sampleFilePath: String
-)
-
-data class AlbumSearchItem(
-    val name: String,
-    val artist: String,
-    val songCount: Int,
-    val sampleSongId: Long,
-    val sampleFilePath: String
-)
-
-@Composable
-fun ArtistSearchCard(
-    artist: ArtistSearchItem,
-    fontFamily: FontFamily,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(8.dp)
-            .width(100.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.05f)),
-            contentAlignment = Alignment.Center
-        ) {
-            AlbumArtImage(
-                songId = artist.sampleSongId,
-                filePath = artist.sampleFilePath,
-                modifier = Modifier.fillMaxSize(),
-                cornerRadius = 40.dp,
-                iconSize = 24.dp
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = artist.name,
-            color = Color.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = fontFamily,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            text = "${artist.songCount} أغنية",
-            color = Color.White.copy(alpha = 0.5f),
-            fontSize = 11.sp,
-            fontFamily = fontFamily,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-fun AlbumSearchCard(
-    album: AlbumSearchItem,
-    fontFamily: FontFamily,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(8.dp)
-            .width(110.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(90.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.White.copy(alpha = 0.05f)),
-            contentAlignment = Alignment.Center
-        ) {
-            AlbumArtImage(
-                songId = album.sampleSongId,
-                filePath = album.sampleFilePath,
-                modifier = Modifier.fillMaxSize(),
-                cornerRadius = 12.dp,
-                iconSize = 28.dp
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = album.name,
-            color = Color.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = fontFamily,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            text = album.artist,
-            color = Color(0xFF4FC3F7),
-            fontSize = 11.sp,
-            fontFamily = fontFamily,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 }

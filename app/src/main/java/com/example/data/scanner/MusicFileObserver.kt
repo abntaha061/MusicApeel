@@ -3,16 +3,26 @@ package com.example.data.scanner
 import android.os.FileObserver
 import java.io.File
 
-class MusicFileObserver(
-    private val directoryPath: String,
-    private val onNewSongAdded: (String) -> Unit
-) : FileObserver(directoryPath, CLOSE_WRITE or MOVED_TO) {
+class MusicFileObserver(path: String, private val onChange: () -> Unit) {
+    private var observer: FileObserver? = null
 
-    override fun onEvent(event: Int, path: String?) {
-        if (path == null) return
-        if (!path.endsWith(".mp3", ignoreCase = true)) return
+    init {
+        try {
+            val file = File(path)
+            if (file.exists()) {
+                observer = object : FileObserver(file.absolutePath, CREATE or DELETE or MODIFY) {
+                    override fun onEvent(event: Int, path: String?) {
+                        onChange()
+                    }
+                }
+                observer?.startWatching()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
-        val fullPath = if (directoryPath.endsWith("/")) "$directoryPath$path" else "$directoryPath/$path"
-        onNewSongAdded(fullPath)
+    fun stop() {
+        observer?.stopWatching()
     }
 }

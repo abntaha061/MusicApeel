@@ -4,21 +4,11 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- 1. Hand-drawn wavy border squircle container -->
+    <!-- Clean sound wave and circle representing PureSonic -->
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#121212"
-        android:strokeWidth="5"
-        android:strokeLineJoin="round"
-        android:strokeLineCap="round"
-        android:pathData="M16,15 C28,14.1 48,15.8 72,15.3 C84,15.1 91,15.9 92.5,18 C94.1,20.2 92.8,32 93.1,56 C93.3,74.5 94.2,88 92.2,90 C90.2,92 78.5,91.8 54,92.5 C29.5,93.2 16.5,92.4 14.5,90.2 C12.5,88 13.8,77 13.9,54 C14,31 12.8,17.2 16,15 Z" />
-
-    <!-- 2. Hand-drawn white-filled double music note with a thick black outline -->
+        android:fillColor="#4FC3F7"
+        android:pathData="M54,24A30,30 0,1 0,84 54,30 30,0 0,0 54,24ZM54,74A20,20 0,1 1,74 54,20 20,0 0,1 54,74Z" />
     <path
-        android:fillColor="#FFFFFF"
-        android:strokeColor="#121212"
-        android:strokeWidth="5.5"
-        android:strokeLineJoin="round"
-        android:strokeLineCap="round"
-        android:pathData="M38,70 C38,75.5 33.5,80 28,80 C22.5,80 18,75.5 18,70 C18,64.5 22.5,60 28,60 C32,60 35.3,62.4 37,65.8 L37,42 C37,39 39,36.5 42,36 L64,30 C67,29.2 70,31.5 70,34.5 L70,64 C70,69.5 65.5,74 60,74 C54.5,74 50,69.5 50,64 C50,58.5 54.5,54 60,54 C64,54 67.3,56.4 69,59.8 L69,40 L42,47 L42,70 Z" />
+        android:fillColor="#ffffff"
+        android:pathData="M48,42v24l16,-12z" />
 </vector>

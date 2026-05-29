@@ -1,15 +1,9 @@
 package com.example.presentation.player
 
-import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
-import android.os.Build
 import androidx.compose.animation.*
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,13 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -34,514 +23,288 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.db.SongEntity
-import com.example.presentation.components.AuroraBackground
+import com.example.data.lyrics.LyricLine
+import com.example.presentation.components.AlbumArtImage
 import com.example.presentation.components.GlassCard
 import com.example.presentation.components.LyricsView
-import com.example.presentation.home.formatDuration
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.example.presentation.components.formatDuration
 
 @Composable
 fun PlayerScreen(
-    currentSong: SongEntity?,
+    song: SongEntity,
     isPlaying: Boolean,
     currentPositionMs: Long,
-    playerViewModel: PlayerViewModel,
-    onPlayPauseClicked: () -> Unit,
-    onNextClicked: () -> Unit,
-    onPreviousClicked: () -> Unit,
-    onSeek: (Long) -> Unit,
-    onCollapseClicked: () -> Unit,
-    onViewArtist: (String) -> Unit,
-    onViewAlbum: (String) -> Unit,
-    musicService: com.example.service.MusicService? = null,
+    dominantColors: List<Color>,
+    lyrics: List<LyricLine>,
+    fontFamily: FontFamily,
+    onTogglePlay: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onSeekTo: (Long) -> Unit,
+    onCollapse: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (currentSong == null) return
+    // Controls whether we are currently showing AlbumArt mode or Lyrics mode
+    var showLyricsMode by remember { mutableStateOf(false) }
 
-    val lyrics by playerViewModel.lyrics.collectAsState()
-    val dominantColors by playerViewModel.dominantColors.collectAsState()
-
-    val CairoBold = FontFamily.SansSerif
-
-    // Auto-hide UI controls state and delay effect
-    var isMiniPlayerVisible by remember { mutableStateOf(true) }
-
-    LaunchedEffect(isMiniPlayerVisible) {
-        if (isMiniPlayerVisible) {
-            delay(7000L) // 7 seconds auto-hide timer
-            isMiniPlayerVisible = false
-        }
-    }
-
-    // Sync state update when track changes
-    LaunchedEffect(currentSong) {
-        playerViewModel.updateSong(currentSong)
-    }
-
-    // Dynamic bitmap cover art to blur and project onto background for depth (loaded safely in background thread)
-    var bitmap by remember(currentSong.filePath) { mutableStateOf<ImageBitmap?>(null) }
-
-    LaunchedEffect(currentSong.filePath) {
-        val loaded = withContext(Dispatchers.IO) {
-            try {
-                val retriever = MediaMetadataRetriever()
-                retriever.setDataSource(currentSong.filePath)
-                val bytes = retriever.embeddedPicture
-                retriever.release()
-                bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
-            } catch (e: Exception) {
-                null
-            }
-        }
-        bitmap = loaded
-    }
+    // Dynamic reactive background gradients representing album visual leaks
+    val primaryThemeColor = dominantColors.firstOrNull() ?: Color(0xFF4FC3F7)
+    val secondaryColor = dominantColors.getOrNull(1) ?: Color(0xFF141414)
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF070708))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {
-                isMiniPlayerVisible = true
-            }
-    ) {
-        // A. Fullscreen smooth moving GPU-accelerated Aurora Background
-        AuroraBackground(dominantColors = dominantColors, modifier = Modifier.fillMaxSize())
-
-        // B. Large blurred low-opacity Album Art Background to give maximum depth
-        val currentBitmap = bitmap
-        if (currentBitmap != null) {
-            Image(
-                bitmap = currentBitmap,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            try {
-                                renderEffect = BlurEffect(60f, 60f, TileMode.Clamp)
-                            } catch (t: Throwable) {
-                                t.printStackTrace()
-                            }
-                        }
-                        alpha = 0.22f
-                    },
-                contentScale = ContentScale.Crop
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        primaryThemeColor.copy(alpha = 0.35f),
+                        secondaryColor.copy(alpha = 0.8f),
+                        Color(0xFF0F0F0F)
+                    )
+                )
             )
-        }
-
-        // C. Super dark overlay scrim for legible text reading
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.35f))
-        )
-
-        // D. Inner content column
+    ) {
+        // Vertical content alignment
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .navigationBarsPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .navigationBarsPadding()
         ) {
-            
-            // 1. Sleek Glass-designed Header (with auto-hide slide animation)
-            AnimatedVisibility(
-                visible = isMiniPlayerVisible,
-                enter = slideInVertically(
-                    initialOffsetY = { -it },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeIn(tween(400)),
-                exit = slideOutVertically(
-                    targetOffsetY = { -it },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeOut(tween(300))
+            // Header Action Hub
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
+                IconButton(
+                    onClick = onCollapse,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                        .size(40.dp)
                 ) {
-                    // Glass Back Arrow Button
-                    GlassCard(
-                        modifier = Modifier.size(40.dp),
-                        cornerRadius = 20.dp,
-                        opacity = 0.15f
-                    ) {
-                        IconButton(
-                            onClick = onCollapseClicked,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.KeyboardArrowDown,
-                                contentDescription = "تصغير المشغل",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.ExpandMore,
+                        contentDescription = "تصغير المشغل",
+                        tint = Color.White
+                    )
+                }
 
-                    // Centered song title and artist labels
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = currentSong.title,
-                            color = Color.White,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = CairoBold,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val artists = com.example.presentation.components.splitArtists(currentSong.artist)
-                            artists.forEachIndexed { i, artistName ->
-                                Text(
-                                    text = artistName,
-                                    color = Color.White.copy(alpha = 0.75f),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    fontFamily = CairoBold,
-                                    modifier = Modifier.clickable {
-                                        onCollapseClicked()
-                                        onViewArtist(artistName)
-                                    }
-                                )
-                                if (i < artists.size - 1) {
-                                    Text(
-                                        text = " ، ",
-                                        color = Color.White.copy(alpha = 0.40f),
-                                        fontSize = 13.sp,
-                                        fontFamily = CairoBold
-                                    )
-                                }
-                            }
-                        }
-                    }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "مشغل الأغنية",
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 11.sp,
+                        fontFamily = fontFamily,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = song.album,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = fontFamily,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 200.dp)
+                    )
+                }
 
-                    // Glass More Info Button
-                    var showMoreMenu by remember { mutableStateOf(false) }
-                    var showSleepTimerSheet by remember { mutableStateOf(false) }
-                    val sleepRemainingMs by (musicService?.sleepTimeRemaining ?: kotlinx.coroutines.flow.MutableStateFlow(0L)).collectAsState()
-
-                    Box {
-                        GlassCard(
-                            modifier = Modifier.size(40.dp),
-                            cornerRadius = 20.dp,
-                            opacity = 0.15f
-                        ) {
-                            IconButton(
-                                onClick = { showMoreMenu = true },
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.MoreVert,
-                                    contentDescription = "خيارات إضافية",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-
-                        DropdownMenu(
-                            expanded = showMoreMenu,
-                            onDismissRequest = { showMoreMenu = false },
-                            modifier = Modifier.background(Color(0xFF1E1E24))
-                        ) {
-                            DropdownMenuItem(
-                                text = { 
-                                    val text = if (sleepRemainingMs > 0) {
-                                        "مؤقت النوم (${formatSleepTime(sleepRemainingMs)})"
-                                    } else {
-                                        "مؤقت النوم"
-                                    }
-                                    Text(text, color = Color.White, fontFamily = CairoBold) 
-                                },
-                                leadingIcon = { Icon(Icons.Rounded.AccessTime, contentDescription = null, tint = Color.White) },
-                                onClick = {
-                                    showMoreMenu = false
-                                    showSleepTimerSheet = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("عرض صفحة الفنان", color = Color.White, fontFamily = CairoBold) },
-                                leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null, tint = Color.White) },
-                                onClick = {
-                                    showMoreMenu = false
-                                    onCollapseClicked()
-                                    val target = com.example.presentation.components.splitArtists(currentSong.artist).firstOrNull() ?: currentSong.artist
-                                    onViewArtist(target)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("عرض صفحة الألبوم", color = Color.White, fontFamily = CairoBold) },
-                                leadingIcon = { Icon(Icons.Rounded.Album, contentDescription = null, tint = Color.White) },
-                                onClick = {
-                                    showMoreMenu = false
-                                    onCollapseClicked()
-                                    onViewAlbum(currentSong.album)
-                                }
-                            )
-                        }
-                    }
-
-                    if (showSleepTimerSheet) {
-                        @OptIn(ExperimentalMaterial3Api::class)
-                        ModalBottomSheet(
-                            onDismissRequest = { showSleepTimerSheet = false },
-                            containerColor = Color(0xFF16161B),
-                            contentColor = Color.White
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 24.dp)
-                                    .padding(bottom = 36.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                Text(
-                                    text = "مؤقت النوم",
-                                    color = Color.White,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = CairoBold,
-                                    textAlign = TextAlign.Center
-                                )
-
-                                if (sleepRemainingMs > 0) {
-                                    Text(
-                                        text = "الوقت المتبقي: ${formatSleepTime(sleepRemainingMs)}",
-                                        color = Color(0xFFE91E63),
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontFamily = CairoBold
-                                    )
-
-                                    Button(
-                                        onClick = {
-                                            musicService?.cancelSleepTimer()
-                                            showSleepTimerSheet = false
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(0.12f)),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Text("إلغاء المؤقت", color = Color.White, fontFamily = CairoBold)
-                                    }
-                                } else {
-                                    Text(
-                                        text = "اختر بعد كم دقيقة تريد إيقاف تشغيل الموسيقى تلقائياً:",
-                                        color = Color.White.copy(0.6f),
-                                        fontSize = 14.sp,
-                                        fontFamily = CairoBold,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                val presets = listOf(
-                                    15 to "15 دقيقة",
-                                    30 to "30 دقيقة",
-                                    45 to "45 دقيقة",
-                                    60 to "ساعة واحدة",
-                                    120 to "ساعتان"
-                                )
-
-                                presets.forEach { (mins, label) ->
-                                    OutlinedButton(
-                                        onClick = {
-                                            musicService?.startSleepTimer(mins)
-                                            showSleepTimerSheet = false
-                                        },
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(0.15f)),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                                    ) {
-                                        Text(text = label, color = Color.White, fontFamily = CairoBold, fontSize = 15.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                IconButton(
+                    onClick = { showLyricsMode = !showLyricsMode },
+                    modifier = Modifier
+                        .background(if (showLyricsMode) Color(0xFF4FC3F7).copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f), CircleShape)
+                        .size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Lyrics,
+                        contentDescription = "عرض الكلمات",
+                        tint = if (showLyricsMode) Color(0xFF4FC3F7) else Color.White
+                    )
                 }
             }
 
-            // 2. Right-aligned Live Sync Lyrics View - always fills remaining space
+            // Central View Area: Artwork mode vs. Synder Lymph-lines mode
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        isMiniPlayerVisible = true
-                    }
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                LyricsView(
-                    lrcContent = lyrics,
-                    currentPositionMs = currentPositionMs,
-                    onLineClicked = {
-                        onSeek(it)
-                        isMiniPlayerVisible = true
-                    }
-                )
-            }
-
-            // 3. Glowing Control Bar Deck with Seekbar Progress Control (with auto-hide slide animation)
-            AnimatedVisibility(
-                visible = isMiniPlayerVisible,
-                enter = slideInVertically(
-                    initialOffsetY = { it },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeIn(tween(400)),
-                exit = slideOutVertically(
-                    targetOffsetY = { it },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeOut(tween(300))
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp)
-                    ) {
-                        val maxRange = currentSong.duration.toFloat().coerceAtLeast(1f)
-                        val sliderPosition = if (currentSong.duration > 0) {
-                            currentPositionMs.toFloat().coerceIn(0f, maxRange)
-                        } else {
-                            0f
-                        }
-
-                        Slider(
-                            value = sliderPosition,
-                            onValueChange = {
-                                onSeek(it.toLong())
-                                isMiniPlayerVisible = true
-                            },
-                            valueRange = 0f..maxRange,
-                            colors = SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = Color.White,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.20f)
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(20.dp)
+                AnimatedContent(
+                    targetState = showLyricsMode,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(400))
+                    },
+                    label = "centerView"
+                ) { lyricsMode ->
+                    if (lyricsMode) {
+                        LyricsView(
+                            lyrics = lyrics,
+                            currentPositionMs = currentPositionMs,
+                            fontFamily = fontFamily,
+                            onLineClick = { targetTime -> onSeekTo(targetTime) },
+                            modifier = Modifier.fillMaxSize()
                         )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 32.dp, vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
+                            // Immersive square shadow Card layout for artwork
+                            GlassCard(
+                                cornerRadius = 24.dp,
+                                borderWidth = 1.6.dp,
+                                modifier = Modifier
+                                    .aspectRatio(1f)
+                                    .fillMaxWidth()
+                                    .padding(bottom = 24.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AlbumArtImage(
+                                        songId = song.id,
+                                        filePath = song.filePath,
+                                        modifier = Modifier.fillMaxSize(0.9f),
+                                        cornerRadius = 16.dp,
+                                        iconSize = 56.dp
+                                    )
+                                }
+                            }
+
+                            // Meta titles
                             Text(
-                                text = formatDuration(currentPositionMs),
-                                color = Color.White.copy(alpha = 0.5f),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                fontFamily = CairoBold
+                                text = song.title,
+                                color = Color.White,
+                                fontSize = 23.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = fontFamily,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth()
                             )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
                             Text(
-                                text = formatDuration(currentSong.duration),
-                                color = Color.White.copy(alpha = 0.5f),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                fontFamily = CairoBold
-                            )
-                        }
-                    }
-
-                    // 4. Playback Navigation Bar Buttons (Previous, Primary Play/Pause, Next)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 36.dp, top = 16.dp, start = 24.dp, end = 24.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = {
-                                onPreviousClicked()
-                                isMiniPlayerVisible = true
-                            },
-                            modifier = Modifier.size(54.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.SkipPrevious,
-                                contentDescription = "السابق",
-                                tint = Color.White,
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(36.dp))
-
-                        IconButton(
-                            onClick = {
-                                onPlayPauseClicked()
-                                isMiniPlayerVisible = true
-                            },
-                            modifier = Modifier.size(76.dp),
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = Color.White,
-                                contentColor = Color.Black
-                            )
-                        ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                contentDescription = if (isPlaying) "إيقاف مؤقت" else "تشغيل",
-                                modifier = Modifier.size(40.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(36.dp))
-
-                        IconButton(
-                            onClick = {
-                                onNextClicked()
-                                isMiniPlayerVisible = true
-                            },
-                            modifier = Modifier.size(54.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.SkipNext,
-                                contentDescription = "التالي",
-                                tint = Color.White,
-                                modifier = Modifier.size(36.dp)
+                                text = song.artist,
+                                color = Color(0xFF4FC3F7),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = fontFamily,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
                 }
             }
+
+            // Player seek indicators and controls (always displayed at the bottom)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Seek timeline sliders
+                val progress = if (song.duration > 0) currentPositionMs.toFloat() / song.duration else 0f
+                Slider(
+                    value = progress,
+                    onValueChange = { percent ->
+                        val targetMs = (percent * song.duration).toLong()
+                        onSeekTo(targetMs)
+                    },
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color(0xFF4FC3F7),
+                        activeTrackColor = Color(0xFF4FC3F7),
+                        inactiveTrackColor = Color.White.copy(alpha = 0.12f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Timer labels
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = formatDuration(currentPositionMs),
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 11.sp,
+                        fontFamily = fontFamily
+                    )
+                    Text(
+                        text = formatDuration(song.duration),
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 11.sp,
+                        fontFamily = fontFamily
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Playback Navigation Control Circle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onPrevious,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipPrevious,
+                            contentDescription = "السابق",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .clickable(onClick = onTogglePlay),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = "تشغيل وقوف مؤقت",
+                            tint = Color(0xFF4FC3F7),
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onNext,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipNext,
+                            contentDescription = "التالي",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
     }
-}
-
-fun formatSleepTime(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return String.format("%02d:%02d", minutes, seconds)
 }

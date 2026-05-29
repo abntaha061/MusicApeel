@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [SongEntity::class], version = 2, exportSchema = false)
+@Database(entities = [SongEntity::class], version = 1, exportSchema = false)
 abstract class SongDatabase : RoomDatabase() {
     abstract fun songDao(): SongDao
 
@@ -18,7 +18,7 @@ abstract class SongDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     SongDatabase::class.java,
-                    "tarab_music_database"
+                    "song_database"
                 )
                 .fallbackToDestructiveMigration()
                 .build()
