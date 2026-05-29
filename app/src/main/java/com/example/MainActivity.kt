@@ -56,6 +56,8 @@ import com.example.presentation.player.PlayerScreen
 import com.example.presentation.player.PlayerViewModel
 import com.example.service.MusicService
 import com.example.ui.theme.MyApplicationTheme
+import com.example.presentation.components.SongRowComponent
+import com.example.presentation.components.ArtistProfileScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -196,6 +198,7 @@ fun AppContent(
     var selectedTab by remember { mutableStateOf("home") }
     var isPlayerExpanded by remember { mutableStateOf(false) }
     var showAllSongsScreen by remember { mutableStateOf(false) }
+    var selectedArtistForProfile by remember { mutableStateOf<String?>(null) }
 
     // Search view states
     var searchQuery by remember { mutableStateOf("") }
@@ -209,6 +212,8 @@ fun AppContent(
     BackHandler(enabled = true) {
         if (isPlayerExpanded) {
             isPlayerExpanded = false
+        } else if (selectedArtistForProfile != null) {
+            selectedArtistForProfile = null
         } else if (showAllSongsScreen) {
             showAllSongsScreen = false
         } else {
@@ -342,9 +347,7 @@ fun AppContent(
                         musicService?.playSongList(songs, index)
                     },
                     onArtistSelected = { artistName ->
-                        // Switch to search and input artist name as query
-                        searchQuery = artistName
-                        selectedTab = "search"
+                        selectedArtistForProfile = artistName
                     }
                 )
 
@@ -452,31 +455,20 @@ fun AppContent(
                                     items = filteredSongs,
                                     key = { _, song -> song.id }
                                 ) { index, song ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(Color.White.copy(alpha = 0.03f))
-                                            .clickable {
-                                                musicService?.playSongList(filteredSongs, index)
-                                            }
-                                            .padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        AlbumArtImage(
-                                            songId = song.id,
-                                            filePath = song.filePath,
-                                            modifier = Modifier.size(48.dp),
-                                            cornerRadius = 8.dp,
-                                            iconSize = 22.dp
-                                        )
-                                        Spacer(modifier = Modifier.width(16.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(song.title, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            Text(song.artist, color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    SongRowComponent(
+                                        song = song,
+                                        fontFamily = CairoBold,
+                                        onClick = {
+                                            musicService?.playSongList(filteredSongs, index)
+                                        },
+                                        onAddToNext = {
+                                            musicService?.addToNext(song)
+                                        },
+                                        onViewArtist = { artistName ->
+                                            selectedArtistForProfile = artistName
+                                            isPlayerExpanded = false
                                         }
-                                        Text(formatDuration(song.duration), color = Color.White.copy(alpha = 0.4f), fontSize = 12.sp)
-                                    }
+                                    )
                                 }
                             }
                         }
@@ -544,47 +536,20 @@ fun AppContent(
                                         items = allSongs,
                                         key = { _, song -> song.id }
                                     ) { index, song ->
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(Color.White.copy(alpha = 0.03f))
-                                                .clickable {
-                                                    musicService?.playSongList(allSongs, index)
-                                                }
-                                                .padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            AlbumArtImage(
-                                                songId = song.id,
-                                                filePath = song.filePath,
-                                                modifier = Modifier.size(48.dp),
-                                                cornerRadius = 8.dp,
-                                                iconSize = 22.dp
-                                            )
-                                            Spacer(modifier = Modifier.width(16.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = song.title,
-                                                    color = Color.White,
-                                                    fontWeight = FontWeight.Bold,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                Text(
-                                                    text = song.artist,
-                                                    color = Color.White.copy(alpha = 0.5f),
-                                                    fontSize = 12.sp,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
+                                        SongRowComponent(
+                                            song = song,
+                                            fontFamily = CairoBold,
+                                            onClick = {
+                                                musicService?.playSongList(allSongs, index)
+                                            },
+                                            onAddToNext = {
+                                                musicService?.addToNext(song)
+                                            },
+                                            onViewArtist = { artistName ->
+                                                selectedArtistForProfile = artistName
+                                                isPlayerExpanded = false
                                             }
-                                            Text(
-                                                text = formatDuration(song.duration),
-                                                color = Color.White.copy(alpha = 0.4f),
-                                                fontSize = 12.sp
-                                            )
-                                        }
+                                        )
                                     }
                                 }
                             }
@@ -704,7 +669,27 @@ fun AppContent(
                     onNextClicked = { musicService?.playNext() },
                     onPreviousClicked = { musicService?.playPrevious() },
                     onSeek = { musicService?.seekTo(it) },
-                    onCollapseClicked = { isPlayerExpanded = false }
+                    onCollapseClicked = { isPlayerExpanded = false },
+                    musicService = musicService
+                )
+            }
+
+            // D. Artist Profile Screen Overlay
+            if (selectedArtistForProfile != null) {
+                ArtistProfileScreen(
+                    artistName = selectedArtistForProfile!!,
+                    allSongs = allSongs,
+                    fontFamily = CairoBold,
+                    onBack = { selectedArtistForProfile = null },
+                    onSongSelected = { songs, index ->
+                        musicService?.playSongList(songs, index)
+                    },
+                    onAddToNext = { song ->
+                        musicService?.addToNext(song)
+                    },
+                    onViewArtist = { artistName ->
+                        selectedArtistForProfile = artistName
+                    }
                 )
             }
         }

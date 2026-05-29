@@ -353,6 +353,104 @@ class MusicService : MediaSessionService() {
         }
     }
 
+    fun addToNext(song: SongEntity) {
+        try {
+            val list = _playlist.value.toMutableList()
+            val current = _currentSong.value
+
+            if (list.isEmpty() || current == null) {
+                playSongList(listOf(song), 0)
+                return
+            }
+
+            val currentIndex = list.indexOfFirst { it.id == current.id }
+            if (currentIndex != -1) {
+                list.add(currentIndex + 1, song)
+                _playlist.value = list
+
+                serviceScope.launch {
+                    val mediaUri = withContext(Dispatchers.IO) {
+                        if (song.filePath.startsWith("assets:///")) {
+                            UriUtil.getAssetUri(song.filePath)
+                        } else {
+                            val file = java.io.File(song.filePath)
+                            if (file.exists()) {
+                                android.net.Uri.fromFile(file).toString()
+                            } else {
+                                song.filePath
+                            }
+                        }
+                    }
+                    val mediaItem = createMediaItem(song, mediaUri)
+                    withContext(Dispatchers.Main) {
+                        player.addMediaItem(currentIndex + 1, mediaItem)
+                    }
+                }
+            } else {
+                list.add(song)
+                _playlist.value = list
+
+                serviceScope.launch {
+                    val mediaUri = withContext(Dispatchers.IO) {
+                        if (song.filePath.startsWith("assets:///")) {
+                            UriUtil.getAssetUri(song.filePath)
+                        } else {
+                            val file = java.io.File(song.filePath)
+                            if (file.exists()) {
+                                android.net.Uri.fromFile(file).toString()
+                            } else {
+                                song.filePath
+                            }
+                        }
+                    }
+                    val mediaItem = createMediaItem(song, mediaUri)
+                    withContext(Dispatchers.Main) {
+                        player.addMediaItem(mediaItem)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // Sleep Timer Support
+    private var sleepTimerJob: Job? = null
+    private val _sleepTimeRemaining = MutableStateFlow(0L) // Remaining time in ms
+    val sleepTimeRemaining: StateFlow<Long> = _sleepTimeRemaining.asStateFlow()
+
+    fun startSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
+        if (minutes <= 0) {
+            _sleepTimeRemaining.value = 0L
+            return
+        }
+        val durationMs = minutes * 60 * 1000L
+        val startTime = System.currentTimeMillis()
+        _sleepTimeRemaining.value = durationMs
+        
+        sleepTimerJob = serviceScope.launch {
+            while (isActive) {
+                val elapsedTime = System.currentTimeMillis() - startTime
+                val remaining = durationMs - elapsedTime
+                if (remaining <= 0) {
+                    _sleepTimeRemaining.value = 0L
+                    if (player.isPlaying) {
+                        togglePlayPause()
+                    }
+                    break
+                }
+                _sleepTimeRemaining.value = remaining
+                delay(1000L) // Tick every second
+            }
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        _sleepTimeRemaining.value = 0L
+    }
+
     fun seekTo(positionMs: Long) {
         try {
             player.seekTo(positionMs)

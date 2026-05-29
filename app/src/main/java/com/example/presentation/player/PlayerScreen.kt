@@ -53,6 +53,7 @@ fun PlayerScreen(
     onPreviousClicked: () -> Unit,
     onSeek: (Long) -> Unit,
     onCollapseClicked: () -> Unit,
+    musicService: com.example.service.MusicService? = null,
     modifier: Modifier = Modifier
 ) {
     if (currentSong == null) return
@@ -215,21 +216,131 @@ fun PlayerScreen(
                     }
 
                     // Glass More Info Button
-                    GlassCard(
-                        modifier = Modifier.size(40.dp),
-                        cornerRadius = 20.dp,
-                        opacity = 0.15f
-                    ) {
-                        IconButton(
-                            onClick = { isMiniPlayerVisible = true },
-                            modifier = Modifier.fillMaxSize()
+                    var showMoreMenu by remember { mutableStateOf(false) }
+                    var showSleepTimerSheet by remember { mutableStateOf(false) }
+                    val sleepRemainingMs by (musicService?.sleepTimeRemaining ?: kotlinx.coroutines.flow.MutableStateFlow(0L)).collectAsState()
+
+                    Box {
+                        GlassCard(
+                            modifier = Modifier.size(40.dp),
+                            cornerRadius = 20.dp,
+                            opacity = 0.15f
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.MoreVert,
-                                contentDescription = "خيارات إضافية",
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
+                            IconButton(
+                                onClick = { showMoreMenu = true },
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.MoreVert,
+                                    contentDescription = "خيارات إضافية",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showMoreMenu,
+                            onDismissRequest = { showMoreMenu = false },
+                            modifier = Modifier.background(Color(0xFF1E1E24))
+                        ) {
+                            DropdownMenuItem(
+                                text = { 
+                                    val text = if (sleepRemainingMs > 0) {
+                                        "مؤقت النوم (${formatSleepTime(sleepRemainingMs)})"
+                                    } else {
+                                        "مؤقت النوم"
+                                    }
+                                    Text(text, color = Color.White, fontFamily = CairoBold) 
+                                },
+                                leadingIcon = { Icon(Icons.Rounded.AccessTime, contentDescription = null, tint = Color.White) },
+                                onClick = {
+                                    showMoreMenu = false
+                                    showSleepTimerSheet = true
+                                }
                             )
+                        }
+                    }
+
+                    if (showSleepTimerSheet) {
+                        @OptIn(ExperimentalMaterial3Api::class)
+                        ModalBottomSheet(
+                            onDismissRequest = { showSleepTimerSheet = false },
+                            containerColor = Color(0xFF16161B),
+                            contentColor = Color.White
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp)
+                                    .padding(bottom = 36.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text(
+                                    text = "مؤقت النوم",
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = CairoBold,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                if (sleepRemainingMs > 0) {
+                                    Text(
+                                        text = "الوقت المتبقي: ${formatSleepTime(sleepRemainingMs)}",
+                                        color = Color(0xFFE91E63),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontFamily = CairoBold
+                                    )
+
+                                    Button(
+                                        onClick = {
+                                            musicService?.cancelSleepTimer()
+                                            showSleepTimerSheet = false
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(0.12f)),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("إلغاء المؤقت", color = Color.White, fontFamily = CairoBold)
+                                    }
+                                } else {
+                                    Text(
+                                        text = "اختر بعد كم دقيقة تريد إيقاف تشغيل الموسيقى تلقائياً:",
+                                        color = Color.White.copy(0.6f),
+                                        fontSize = 14.sp,
+                                        fontFamily = CairoBold,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                val presets = listOf(
+                                    15 to "15 دقيقة",
+                                    30 to "30 دقيقة",
+                                    45 to "45 دقيقة",
+                                    60 to "ساعة واحدة",
+                                    120 to "ساعتان"
+                                )
+
+                                presets.forEach { (mins, label) ->
+                                    OutlinedButton(
+                                        onClick = {
+                                            musicService?.startSleepTimer(mins)
+                                            showSleepTimerSheet = false
+                                        },
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(0.15f)),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                                    ) {
+                                        Text(text = label, color = Color.White, fontFamily = CairoBold, fontSize = 15.sp)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -388,4 +499,11 @@ fun PlayerScreen(
             }
         }
     }
+}
+
+fun formatSleepTime(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }
