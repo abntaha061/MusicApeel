@@ -20,16 +20,24 @@ class MediaScanner(private val context: Context) {
     suspend fun scanDevice(): List<SongEntity> = withContext(Dispatchers.IO) {
         val musicDir = File(MusicConfig.MUSIC_DIR)
         
+        // Force refresh the directory cache
+        musicDir.listFiles() // استدعاء أول لتحديث الكاش
+        
+        val mp3Files = musicDir.listFiles { file ->
+            file.isFile && file.extension.lowercase() == "mp3"
+        } ?: emptyArray()
+        
+        Log.d("SCAN_DEBUG", "المسار: ${musicDir.absolutePath}")
+        Log.d("SCAN_DEBUG", "المسار موجود: ${musicDir.exists()}")
+        Log.d("SCAN_DEBUG", "صلاحية القراءة: ${musicDir.canRead()}")
+        Log.d("SCAN_DEBUG", "عدد الملفات الكلي: ${musicDir.listFiles()?.size}")
+        Log.d("SCAN_DEBUG", "عدد MP3: ${mp3Files.size}")
+        
         // Safety check
         if (!musicDir.exists() || !musicDir.isDirectory) {
             Log.e("SCANNER", "Music directory not found: ${MusicConfig.MUSIC_DIR}")
             return@withContext emptyList()
         }
-        
-        // Get all MP3 files ONLY from this directory (non-recursive)
-        val mp3Files = musicDir.listFiles { file ->
-            file.isFile && file.extension.lowercase() == "mp3"
-        } ?: return@withContext emptyList()
         
         Log.d("SCAN", "ملفات MP3 في المجلد: ${mp3Files.size}")
         
