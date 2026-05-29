@@ -199,6 +199,7 @@ fun AppContent(
     var isPlayerExpanded by remember { mutableStateOf(false) }
     var showAllSongsScreen by remember { mutableStateOf(false) }
     var selectedArtistForProfile by remember { mutableStateOf<String?>(null) }
+    var selectedAlbumForProfile by remember { mutableStateOf<String?>(null) }
 
     // Search view states
     var searchQuery by remember { mutableStateOf("") }
@@ -214,6 +215,8 @@ fun AppContent(
             isPlayerExpanded = false
         } else if (selectedArtistForProfile != null) {
             selectedArtistForProfile = null
+        } else if (selectedAlbumForProfile != null) {
+            selectedAlbumForProfile = null
         } else if (showAllSongsScreen) {
             showAllSongsScreen = false
         } else {
@@ -277,6 +280,7 @@ fun AppContent(
                             onClick = {
                                 selectedTab = "home"
                                 selectedArtistForProfile = null
+                                selectedAlbumForProfile = null
                                 showAllSongsScreen = false
                             },
                             icon = { Icon(Icons.Rounded.Home, contentDescription = null) },
@@ -295,6 +299,7 @@ fun AppContent(
                             onClick = {
                                 selectedTab = "search"
                                 selectedArtistForProfile = null
+                                selectedAlbumForProfile = null
                                 showAllSongsScreen = false
                             },
                             icon = { Icon(Icons.Rounded.Search, contentDescription = null) },
@@ -313,6 +318,7 @@ fun AppContent(
                             onClick = {
                                 selectedTab = "library"
                                 selectedArtistForProfile = null
+                                selectedAlbumForProfile = null
                                 showAllSongsScreen = false
                             },
                             icon = { Icon(Icons.Rounded.LibraryMusic, contentDescription = null) },
@@ -679,6 +685,26 @@ fun AppContent(
                 )
             }
 
+            // E. Album Profile Screen Overlay
+            if (selectedAlbumForProfile != null) {
+                com.example.presentation.components.AlbumProfileScreen(
+                    albumName = selectedAlbumForProfile!!,
+                    allSongs = allSongs,
+                    fontFamily = CairoBold,
+                    onBack = { selectedAlbumForProfile = null },
+                    onSongSelected = { songs, index ->
+                        musicService?.playSongList(songs, index)
+                    },
+                    onAddToNext = { song ->
+                        musicService?.addToNext(song)
+                    },
+                    onViewArtist = { artistName ->
+                        selectedArtistForProfile = artistName
+                        selectedAlbumForProfile = null
+                    }
+                )
+            }
+
             // C. Fullscreen Music Player animated modal slide up transition
             AnimatedVisibility(
                 visible = isPlayerExpanded,
@@ -701,6 +727,14 @@ fun AppContent(
                     onPreviousClicked = { musicService?.playPrevious() },
                     onSeek = { musicService?.seekTo(it) },
                     onCollapseClicked = { isPlayerExpanded = false },
+                    onViewArtist = { artistName ->
+                        selectedArtistForProfile = artistName
+                        isPlayerExpanded = false
+                    },
+                    onViewAlbum = { albumName ->
+                        selectedAlbumForProfile = albumName
+                        isPlayerExpanded = false
+                    },
                     musicService = musicService
                 )
             }

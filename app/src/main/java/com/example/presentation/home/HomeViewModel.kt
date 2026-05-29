@@ -76,9 +76,27 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }.flowOn(Dispatchers.IO)
      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LibraryStats(0, 0, 0, 0, 0))
 
-    val artistsForYou: StateFlow<List<ArtistWithArt>> = allSongs.map {
-        val allArtists = songDao.getAllArtistsWithSongs()
-        allArtists.shuffled().take(5)
+    val artistsForYou: StateFlow<List<ArtistWithArt>> = allSongs.map { songs ->
+        if (songs.isEmpty()) {
+            emptyList()
+        } else {
+            val artistToSongs = mutableMapOf<String, MutableList<SongEntity>>()
+            songs.forEach { song ->
+                val splitNames = com.example.presentation.components.splitArtists(song.artist)
+                splitNames.forEach { name ->
+                    artistToSongs.getOrPut(name) { mutableListOf() }.add(song)
+                }
+            }
+            val list = artistToSongs.map { (name, artistSongs) ->
+                val firstSong = artistSongs.firstOrNull()
+                ArtistWithArt(
+                    name = name,
+                    songCount = artistSongs.size,
+                    sampleFilePath = firstSong?.filePath ?: ""
+                )
+            }
+            list.shuffled().take(5)
+        }
     }.flowOn(Dispatchers.IO)
      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 

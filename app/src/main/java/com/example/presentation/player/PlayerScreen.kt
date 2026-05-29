@@ -53,6 +53,8 @@ fun PlayerScreen(
     onPreviousClicked: () -> Unit,
     onSeek: (Long) -> Unit,
     onCollapseClicked: () -> Unit,
+    onViewArtist: (String) -> Unit,
+    onViewAlbum: (String) -> Unit,
     musicService: com.example.service.MusicService? = null,
     modifier: Modifier = Modifier
 ) {
@@ -203,16 +205,33 @@ fun PlayerScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = currentSong.artist,
-                            color = Color.White.copy(alpha = 0.55f),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Normal,
-                            fontFamily = CairoBold,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val artists = com.example.presentation.components.splitArtists(currentSong.artist)
+                            artists.forEachIndexed { i, artistName ->
+                                Text(
+                                    text = artistName,
+                                    color = Color.White.copy(alpha = 0.75f),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    fontFamily = CairoBold,
+                                    modifier = Modifier.clickable {
+                                        onCollapseClicked()
+                                        onViewArtist(artistName)
+                                    }
+                                )
+                                if (i < artists.size - 1) {
+                                    Text(
+                                        text = " ، ",
+                                        color = Color.White.copy(alpha = 0.40f),
+                                        fontSize = 13.sp,
+                                        fontFamily = CairoBold
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     // Glass More Info Button
@@ -257,6 +276,25 @@ fun PlayerScreen(
                                 onClick = {
                                     showMoreMenu = false
                                     showSleepTimerSheet = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("عرض صفحة الفنان", color = Color.White, fontFamily = CairoBold) },
+                                leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null, tint = Color.White) },
+                                onClick = {
+                                    showMoreMenu = false
+                                    onCollapseClicked()
+                                    val target = com.example.presentation.components.splitArtists(currentSong.artist).firstOrNull() ?: currentSong.artist
+                                    onViewArtist(target)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("عرض صفحة الألبوم", color = Color.White, fontFamily = CairoBold) },
+                                leadingIcon = { Icon(Icons.Rounded.Album, contentDescription = null, tint = Color.White) },
+                                onClick = {
+                                    showMoreMenu = false
+                                    onCollapseClicked()
+                                    onViewAlbum(currentSong.album)
                                 }
                             )
                         }

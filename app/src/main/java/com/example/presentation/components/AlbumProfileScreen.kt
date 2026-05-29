@@ -1,6 +1,7 @@
 package com.example.presentation.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -9,7 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Album
-import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -26,8 +27,8 @@ import androidx.compose.ui.unit.sp
 import com.example.data.db.SongEntity
 
 @Composable
-fun ArtistProfileScreen(
-    artistName: String,
+fun AlbumProfileScreen(
+    albumName: String,
     allSongs: List<SongEntity>,
     fontFamily: FontFamily,
     onBack: () -> Unit,
@@ -36,17 +37,12 @@ fun ArtistProfileScreen(
     onViewArtist: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val artistSongs = remember(artistName, allSongs) {
-        allSongs.filter { song ->
-            splitArtists(song.artist).any { it.equals(artistName, ignoreCase = true) }
-        }
+    val albumSongs = remember(albumName, allSongs) {
+        allSongs.filter { it.album.equals(albumName, ignoreCase = true) }
     }
 
-    val albumCount = remember(artistSongs) {
-        artistSongs.map { it.album }.distinct().size
-    }
-
-    val firstSong = artistSongs.firstOrNull()
+    val firstSong = albumSongs.firstOrNull()
+    val mainArtist = firstSong?.artist ?: "غير معروف"
 
     Column(
         modifier = modifier
@@ -77,7 +73,7 @@ fun ArtistProfileScreen(
             }
 
             Text(
-                text = "صفحة الفنان",
+                text = "صفحة الألبوم",
                 color = Color.White,
                 fontSize = 18.sp,
                 fontFamily = fontFamily,
@@ -106,20 +102,20 @@ fun ArtistProfileScreen(
                             filePath = firstSong.filePath,
                             modifier = Modifier
                                 .size(140.dp)
-                                .clip(CircleShape),
-                            cornerRadius = 70.dp,
+                                .clip(RoundedCornerShape(20.dp)),
+                            cornerRadius = 20.dp,
                             iconSize = 48.dp
                         )
                     } else {
                         Box(
                             modifier = Modifier
                                 .size(140.dp)
-                                .clip(CircleShape)
+                                .clip(RoundedCornerShape(20.dp))
                                 .background(Color.White.copy(alpha = 0.08f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.MusicNote,
+                                imageVector = Icons.Rounded.Album,
                                 contentDescription = null,
                                 tint = Color.White.copy(alpha = 0.4f),
                                 modifier = Modifier.size(48.dp)
@@ -130,72 +126,55 @@ fun ArtistProfileScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = artistName,
+                        text = albumName,
                         color = Color.White,
-                        fontSize = 24.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = fontFamily,
                         textAlign = TextAlign.Center,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
+                            .clickable { onViewArtist(mainArtist) }
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier
-                                .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.MusicNote,
-                                contentDescription = null,
-                                tint = Color(0xFF1E88E5),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "${artistSongs.size} أغنية",
-                                color = Color.White.copy(alpha = 0.85f),
-                                fontSize = 13.sp,
-                                fontFamily = fontFamily,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier
-                                .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Album,
-                                contentDescription = null,
-                                tint = Color(0xFFE91E63),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "$albumCount ألبومات",
-                                color = Color.White.copy(alpha = 0.85f),
-                                fontSize = 13.sp,
-                                fontFamily = fontFamily,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.Person,
+                            contentDescription = null,
+                            tint = Color(0xFF1E88E5),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = mainArtist,
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 13.sp,
+                            fontFamily = fontFamily,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "يحتوي على ${albumSongs.size} أغنية",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 13.sp,
+                        fontFamily = fontFamily
+                    )
                 }
             }
 
             item {
                 Text(
-                    text = "جميع الأغاني",
+                    text = "جميع أغاني الألبوم",
                     color = Color.White,
                     fontSize = 18.sp,
                     fontFamily = fontFamily,
@@ -204,7 +183,7 @@ fun ArtistProfileScreen(
                 )
             }
 
-            if (artistSongs.isEmpty()) {
+            if (albumSongs.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -213,18 +192,18 @@ fun ArtistProfileScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "لا توجد أغاني لهذا الفنان",
+                            text = "لا توجد أغاني في هذا الألبوم",
                             color = Color.White.copy(alpha = 0.4f),
                             fontFamily = fontFamily
                         )
                     }
                 }
             } else {
-                itemsIndexed(artistSongs, key = { _, s -> s.id }) { index, s ->
+                itemsIndexed(albumSongs, key = { _, s -> s.id }) { index, s ->
                     SongRowComponent(
                         song = s,
                         fontFamily = fontFamily,
-                        onClick = { onSongSelected(artistSongs, index) },
+                        onClick = { onSongSelected(albumSongs, index) },
                         onAddToNext = { onAddToNext(s) },
                         onViewArtist = { onViewArtist(it) }
                     )

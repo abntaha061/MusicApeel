@@ -203,8 +203,8 @@ fun HomeScreen(
                                             val index = recentlyPlayed.indexOf(song)
                                             onSongSelected(recentlyPlayed, index)
                                         },
-                                        onArtistClick = {
-                                            onArtistSelected(song.artist)
+                                        onArtistClick = { artistName ->
+                                            onArtistSelected(artistName)
                                         }
                                     )
                                 }
@@ -238,8 +238,8 @@ fun HomeScreen(
                                             val index = recentlyAdded.indexOf(song)
                                             onSongSelected(recentlyAdded, index)
                                         },
-                                        onArtistClick = {
-                                            onArtistSelected(song.artist)
+                                        onArtistClick = { artistName ->
+                                            onArtistSelected(artistName)
                                         }
                                     )
                                 }
@@ -273,8 +273,8 @@ fun HomeScreen(
                                             val index = mostPlayed.indexOf(song)
                                             onSongSelected(mostPlayed, index)
                                         },
-                                        onArtistClick = {
-                                            onArtistSelected(song.artist)
+                                        onArtistClick = { artistName ->
+                                            onArtistSelected(artistName)
                                         }
                                     )
                                 }
@@ -304,7 +304,7 @@ fun PlaylistItemCard(
     song: SongEntity,
     fontFamily: FontFamily,
     onClick: () -> Unit,
-    onArtistClick: () -> Unit
+    onArtistClick: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -338,16 +338,37 @@ fun PlaylistItemCard(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.clickable(onClick = onClick)
         )
-        Text(
-            text = song.artist,
-            color = Color(0xFF4FC3F7),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = fontFamily,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.clickable(onClick = onArtistClick)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable {
+                val firstArtist = com.example.presentation.components.splitArtists(song.artist).firstOrNull() ?: song.artist
+                onArtistClick(firstArtist)
+            },
+            horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val artists = com.example.presentation.components.splitArtists(song.artist)
+            artists.forEachIndexed { i, artistName ->
+                Text(
+                    text = artistName,
+                    color = Color(0xFF4FC3F7),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = fontFamily,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.clickable { onArtistClick(artistName) }
+                )
+                if (i < artists.size - 1) {
+                    Text(
+                        text = " ، ",
+                        color = Color(0xFF4FC3F7).copy(alpha = 0.6f),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = fontFamily
+                    )
+                }
+            }
+        }
     }
 }
 

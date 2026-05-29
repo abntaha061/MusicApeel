@@ -72,15 +72,32 @@ fun SongRowComponent(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = song.artist,
-                color = Color(0xFF4FC3F7),
-                fontSize = 12.sp,
-                fontFamily = fontFamily,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.clickable { onViewArtist(song.artist) }
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val artists = splitArtists(song.artist)
+                artists.forEachIndexed { i, artistName ->
+                    Text(
+                        text = artistName,
+                        color = Color(0xFF4FC3F7),
+                        fontSize = 12.sp,
+                        fontFamily = fontFamily,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable { onViewArtist(artistName) }
+                    )
+                    if (i < artists.size - 1) {
+                        Text(
+                            text = " ، ",
+                            color = Color(0xFF4FC3F7).copy(alpha = 0.6f),
+                            fontSize = 12.sp,
+                            fontFamily = fontFamily
+                        )
+                    }
+                }
+            }
         }
 
         Text(
@@ -126,14 +143,29 @@ fun SongRowComponent(
                         onAddToNext()
                     }
                 )
-                DropdownMenuItem(
-                    text = { Text("عرض صفحة الفنان", color = Color.White, fontFamily = fontFamily) },
-                    leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null, tint = Color.White) },
-                    onClick = {
-                        showMenu = false
-                        onViewArtist(song.artist)
+                val artistsList = splitArtists(song.artist)
+                if (artistsList.size <= 1) {
+                    val targetArtist = artistsList.firstOrNull() ?: song.artist
+                    DropdownMenuItem(
+                        text = { Text("عرض صفحة الفنان", color = Color.White, fontFamily = fontFamily) },
+                        leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null, tint = Color.White) },
+                        onClick = {
+                            showMenu = false
+                            onViewArtist(targetArtist)
+                        }
+                    )
+                } else {
+                    artistsList.forEach { artistName ->
+                        DropdownMenuItem(
+                            text = { Text("صفحة الفنان: $artistName", color = Color.White, fontFamily = fontFamily) },
+                            leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null, tint = Color.White) },
+                            onClick = {
+                                showMenu = false
+                                onViewArtist(artistName)
+                            }
+                        )
                     }
-                )
+                }
                 DropdownMenuItem(
                     text = { Text("معلومات الأغنية", color = Color.White, fontFamily = fontFamily) },
                     leadingIcon = { Icon(Icons.Rounded.Info, contentDescription = null, tint = Color.White) },
@@ -199,10 +231,18 @@ private fun shareSongText(context: Context, song: SongEntity) {
     try {
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, "أستمع الآن إلى: ${song.title} للفنان ${song.artist} عبر تطبيق طرب!")
+            putExtra(Intent.EXTRA_TEXT, "أستمع الآن إلى: ${song.title} للفنان ${song.artist} عبر تطبيق PureSonic!")
         }
         context.startActivity(Intent.createChooser(intent, "مشاركة الأغنية"))
     } catch (e: Exception) {
         e.printStackTrace()
     }
 }
+
+fun splitArtists(artistString: String): List<String> {
+    if (artistString.isBlank()) return emptyList()
+    return artistString.split(Regex("[,،&]"))
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+}
+
