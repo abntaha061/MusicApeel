@@ -93,4 +93,7 @@ interface SongDao {
 
     @Query("DELETE FROM songs WHERE file_path IN (:paths)")
     suspend fun deleteByPaths(paths: List<String>)
+
+    @Query("DELETE FROM songs")
+    suspend fun clearAllSongs()
 }

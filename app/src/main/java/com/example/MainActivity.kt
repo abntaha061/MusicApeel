@@ -59,6 +59,10 @@ import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
 
+    private val homeViewModel by lazy {
+        androidx.lifecycle.ViewModelProvider(this)[HomeViewModel::class.java]
+    }
+
     private var musicService: MusicService? by mutableStateOf(null)
     private var isBound by mutableStateOf(false)
 
@@ -75,6 +79,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        if (results[storagePermission] == true) {
+            homeViewModel.checkAndStartLibrarySync()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -84,6 +101,9 @@ class MainActivity : ComponentActivity() {
         bindService(intent, connection, Context.BIND_AUTO_CREATE)
 
         enableEdgeToEdge()
+
+        // Handle permissions and trigger library sync exactly once on startup
+        checkAndRequestPermissions()
 
         setContent {
             MyApplicationTheme {
@@ -95,6 +115,29 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+
+    private fun checkAndRequestPermissions() {
+        val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+
+        val permissionsToRequest = mutableListOf(storagePermission)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        val allGranted = permissionsToRequest.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+
+        if (allGranted) {
+            homeViewModel.checkAndStartLibrarySync()
+        } else {
+            requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
         }
     }
 
@@ -119,10 +162,15 @@ fun AppContent(
     val allSongs by homeViewModel.allSongs.collectAsState()
     val isSyncing by homeViewModel.isSyncing.collectAsState()
 
-    // Observe service playback state flows safely
-    val currentSong = musicService?.currentSong?.collectAsState()?.value
-    val isPlaying = musicService?.isPlaying?.collectAsState()?.value ?: false
-    val currentPosition = musicService?.currentPosition?.collectAsState()?.value ?: 0L
+    // Observe service playback state flows safely and unconditionally
+    val currentSongFlow = remember(musicService) { musicService?.currentSong ?: kotlinx.coroutines.flow.MutableStateFlow(null) }
+    val currentSong by currentSongFlow.collectAsState()
+
+    val isPlayingFlow = remember(musicService) { musicService?.isPlaying ?: kotlinx.coroutines.flow.MutableStateFlow(false) }
+    val isPlaying by isPlayingFlow.collectAsState()
+
+    val currentPositionFlow = remember(musicService) { musicService?.currentPosition ?: kotlinx.coroutines.flow.MutableStateFlow(0L) }
+    val currentPosition by currentPositionFlow.collectAsState()
 
     LaunchedEffect(currentSong) {
         if (currentSong != null) {
@@ -139,43 +187,6 @@ fun AppContent(
 
     // Unified Arabic safe typeface Font
     val CairoBold = FontFamily.SansSerif
-
-    // Auto-scan and notification permission asker on boot
-    val permissionsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_AUDIO
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-        if (results[storagePermission] == true) {
-            homeViewModel.checkAndStartLibrarySync()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_AUDIO
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-
-        val permissionsToRequest = mutableListOf(storagePermission)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-
-        val allGranted = permissionsToRequest.all {
-            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        }
-
-        if (allGranted) {
-            homeViewModel.checkAndStartLibrarySync()
-        } else {
-            permissionsLauncher.launch(permissionsToRequest.toTypedArray())
-        }
-    }
 
     val activity = context as? android.app.Activity
     var backPressedOnce by remember { mutableStateOf(false) }
@@ -220,9 +231,9 @@ fun AppContent(
                             currentSong = currentSong,
                             isPlaying = isPlaying,
                             currentPositionMs = currentPosition,
-                            onPlayPauseClicked = { musicService.togglePlayPause() },
-                            onNextClicked = { musicService.playNext() },
-                            onPreviousClicked = { musicService.playPrevious() },
+                            onPlayPauseClicked = { musicService?.togglePlayPause() },
+                            onNextClicked = { musicService?.playNext() },
+                            onPreviousClicked = { musicService?.playPrevious() },
                             onMiniPlayerClicked = { isPlayerExpanded = true }
                         )
                         Spacer(modifier = Modifier.height(6.dp))

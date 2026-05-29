@@ -164,6 +164,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _isSyncing.value = true
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                if (force) {
+                    android.util.Log.d("SCAN_TRIGGER", "يدوي Refresh — مسح جميع الأغاني من الـ DB أولاً")
+                    songDao.clearAllSongs()
+                }
+
                 val dbCount = songDao.getSongCount()
                 android.util.Log.d("DB_CHECK", "عدد الأغاني في DB: $dbCount")
                 
@@ -175,32 +180,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 // 1. Initial installation when DB is empty OR first scan flag is false
                 // 2. User manually triggers refresh (force == true)
                 if (dbCount == 0 || !isFirstScanDone || force) {
-                    if (dbCount == 0) {
+                    if (dbCount == 0 && !force) {
                         android.util.Log.d("SCAN_TRIGGER", "DB فارغة — بدء Scan أول مرة")
-                    } else {
-                        android.util.Log.d("SCAN_TRIGGER", "DB فيها $dbCount أغنية — ولكن مع ذلك سيتم الـ Scan بسبب الفورس أو العلم (force=$force, isFirstScanDone=$isFirstScanDone)")
+                    } else if (force) {
+                        android.util.Log.d("SCAN_TRIGGER", "بدء Scan يدوي جديد بعد مسح الـ DB")
                     }
                     val scanned = mediaScanner.scanDevice()
                     
-                    // Retrieve existing library to preserve user stats (play counts & timestamps)
-                    val existingSongs = songDao.getSongList()
-                    val existingMap = existingSongs.associateBy { it.id }
-                    
-                    val mergedSongs = scanned.map { scannedSong ->
-                        val existing = existingMap[scannedSong.id]
-                        if (existing != null) {
-                            scannedSong.copy(
-                                playCount = existing.playCount,
-                                lastPlayedTimestamp = existing.lastPlayedTimestamp
-                            )
-                        } else {
-                            scannedSong
-                        }
-                    }
-                    
-                    val paths = mergedSongs.map { it.filePath }
-                    songDao.removeDeletedSongs(paths)
-                    songDao.upsertSongs(mergedSongs)
+                    songDao.upsertSongs(scanned)
                     
                     // Mark first scan as successfully completed
                     getApplication<Application>()
