@@ -44,6 +44,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = emptyList()
         )
 
+    val recentlyAdded: StateFlow<List<SongEntity>> = songDao.getRecentlyAdded()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     val mostPlayed: StateFlow<List<SongEntity>> = songDao.getMostPlayed()
         .stateIn(
             scope = viewModelScope,

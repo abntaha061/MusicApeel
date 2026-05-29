@@ -54,7 +54,13 @@ interface SongDao {
     @Query("SELECT * FROM songs ORDER BY play_count DESC LIMIT 1")
     fun getMostPlayedSong(): Flow<SongEntity?>
     
-    @Query("SELECT * FROM songs WHERE play_count > 0 ORDER BY play_count DESC LIMIT 20")
+    @Query("SELECT * FROM songs WHERE id = :id LIMIT 1")
+    suspend fun getSongById(id: Long): SongEntity?
+
+    @Query("SELECT * FROM songs ORDER BY rowid DESC LIMIT 10")
+    fun getRecentlyAdded(): Flow<List<SongEntity>>
+
+    @Query("SELECT * FROM songs WHERE play_count > 0 ORDER BY play_count DESC LIMIT 10")
     fun getMostPlayed(): Flow<List<SongEntity>>
     
     @Query("SELECT * FROM songs WHERE last_played_timestamp > 0 ORDER BY last_played_timestamp DESC LIMIT 20")

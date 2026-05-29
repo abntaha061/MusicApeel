@@ -163,6 +163,36 @@ class MusicService : MediaSessionService() {
                 }
             }
         }
+
+        // Live persistence of the last played song to SharedPreferences
+        serviceScope.launch {
+            _currentSong.collect { song ->
+                if (song != null) {
+                    val prefs = getSharedPreferences("music_prefs", android.content.Context.MODE_PRIVATE)
+                    prefs.edit()
+                        .putLong("last_song_id", song.id)
+                        .putString("last_song_path", song.filePath)
+                        .apply()
+                }
+            }
+        }
+
+        // Restore last played song from DB on startup
+        serviceScope.launch(Dispatchers.IO) {
+            val prefs = getSharedPreferences("music_prefs", android.content.Context.MODE_PRIVATE)
+            val lastSongId = prefs.getLong("last_song_id", -1L)
+            val lastSongPath = prefs.getString("last_song_path", null)
+            if (lastSongId != -1L && lastSongPath != null) {
+                val lastSong = songDao.getSongById(lastSongId)
+                if (lastSong != null) {
+                    withContext(Dispatchers.Main) {
+                        if (_currentSong.value == null) {
+                            _currentSong.value = lastSong
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Modern multi-role binding support for Media3 controllers and internal app connections
@@ -247,6 +277,13 @@ class MusicService : MediaSessionService() {
             if (player.isPlaying) {
                 player.pause()
             } else {
+                if (player.mediaItemCount == 0) {
+                    val current = _currentSong.value
+                    if (current != null) {
+                        playSongList(listOf(current), 0)
+                        return
+                    }
+                }
                 if (player.playbackState == Player.STATE_IDLE) {
                     player.prepare()
                 }

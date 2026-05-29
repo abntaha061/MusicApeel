@@ -40,6 +40,7 @@ fun HomeScreen(
 ) {
     val allSongs by homeViewModel.allSongs.collectAsState()
     val recentlyPlayed by homeViewModel.recentlyPlayed.collectAsState()
+    val recentlyAdded by homeViewModel.recentlyAdded.collectAsState()
     val mostPlayed by homeViewModel.mostPlayed.collectAsState()
     val topArtists by homeViewModel.topArtists.collectAsState()
     val isSyncing by homeViewModel.isSyncing.collectAsState()
@@ -208,12 +209,44 @@ fun HomeScreen(
                     }
                 }
 
-                // 5. Most Played list
+                // 5. Recently Added
+                if (recentlyAdded.isNotEmpty()) {
+                    item {
+                        Column {
+                            Text(
+                                text = "أحدث الأغاني المضافة",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = CairoBold,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                            )
+                            
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(recentlyAdded, key = { it.id }) { song ->
+                                    PlaylistItemCard(
+                                        song = song,
+                                        fontFamily = CairoBold,
+                                        onClick = {
+                                            val index = recentlyAdded.indexOf(song)
+                                            onSongSelected(recentlyAdded, index)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 6. Most Played list
                 if (mostPlayed.isNotEmpty()) {
                     item {
                         Column {
                             Text(
-                                text = "الأكثر استماعاً",
+                                text = "الأكثر تشغيلاً",
                                 color = Color.White,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
