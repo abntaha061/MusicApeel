@@ -65,13 +65,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = emptyList()
         )
 
-    val libraryStats: StateFlow<LibraryStats> = allSongs.map {
+    val libraryStats: StateFlow<LibraryStats> = allSongs.map { songs ->
+        val uniqueArtists = songs.flatMap { com.example.presentation.components.splitArtists(it.artist) }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+        val uniqueAlbums = songs.map { it.album.trim() }
+            .filter { it.isNotEmpty() && !it.equals("ألبوم غير معروف", ignoreCase = true) && !it.equals("Unknown Album", ignoreCase = true) }
+            .distinct()
+        val totalDuration = songs.sumOf { it.duration }
+        val totalListening = songs.sumOf { it.playCount * it.duration }
         LibraryStats(
-            totalSongs = songDao.getTotalSongs(),
-            totalDurationMs = songDao.getTotalDuration(),
-            totalArtists = songDao.getTotalArtists(),
-            totalAlbums = songDao.getTotalAlbums(),
-            totalListeningTimeMs = songDao.getTotalListeningTime()
+            totalSongs = songs.size,
+            totalDurationMs = totalDuration,
+            totalArtists = uniqueArtists.size,
+            totalAlbums = uniqueAlbums.size,
+            totalListeningTimeMs = totalListening
         )
     }.flowOn(Dispatchers.IO)
      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LibraryStats(0, 0, 0, 0, 0))

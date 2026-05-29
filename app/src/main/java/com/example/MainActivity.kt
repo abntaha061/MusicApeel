@@ -22,6 +22,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -413,6 +415,49 @@ fun AppContent(
 
                         Spacer(modifier = Modifier.height(20.dp))
 
+                        // Fuzzy and direct search classification
+                        val matchedArtists = remember(allSongs, searchQuery) {
+                            if (searchQuery.isBlank()) emptyList() else {
+                                allSongs.flatMap { com.example.presentation.components.splitArtists(it.artist) }
+                                    .map { it.trim() }
+                                    .filter { it.isNotEmpty() }
+                                    .distinct()
+                                    .filter { it.contains(searchQuery, ignoreCase = true) }
+                                    .map { name ->
+                                        val artistSongs = allSongs.filter { s ->
+                                            com.example.presentation.components.splitArtists(s.artist).any { it.equals(name, ignoreCase = true) }
+                                        }
+                                        val firstSong = artistSongs.firstOrNull()
+                                        ArtistSearchItem(
+                                            name = name,
+                                            songCount = artistSongs.size,
+                                            sampleSongId = firstSong?.id ?: 0L,
+                                            sampleFilePath = firstSong?.filePath ?: ""
+                                        )
+                                    }
+                            }
+                        }
+
+                        val matchedAlbums = remember(allSongs, searchQuery) {
+                            if (searchQuery.isBlank()) emptyList() else {
+                                allSongs.map { it.album.trim() }
+                                    .filter { it.isNotEmpty() && !it.equals("ألبوم غير معروف", ignoreCase = true) && !it.equals("Unknown Album", ignoreCase = true) }
+                                    .distinct()
+                                    .filter { it.contains(searchQuery, ignoreCase = true) }
+                                    .map { albumName ->
+                                        val albumSongs = allSongs.filter { it.album.equals(albumName, ignoreCase = true) }
+                                        val firstSong = albumSongs.firstOrNull()
+                                        AlbumSearchItem(
+                                            name = albumName,
+                                            artist = firstSong?.artist ?: "غير معروف",
+                                            songCount = albumSongs.size,
+                                            sampleSongId = firstSong?.id ?: 0L,
+                                            sampleFilePath = firstSong?.filePath ?: ""
+                                        )
+                                    }
+                            }
+                        }
+
                         val filteredSongs = remember(allSongs, searchQuery) {
                             if (searchQuery.isBlank()) {
                                 emptyList()
@@ -449,7 +494,7 @@ fun AppContent(
                                     )
                                 }
                             }
-                        } else if (filteredSongs.isEmpty()) {
+                        } else if (matchedArtists.isEmpty() && matchedAlbums.isEmpty() && filteredSongs.isEmpty()) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -466,27 +511,98 @@ fun AppContent(
                             }
                         } else {
                             LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                itemsIndexed(
-                                    items = filteredSongs,
-                                    key = { _, song -> song.id }
-                                ) { index, song ->
-                                    SongRowComponent(
-                                        song = song,
-                                        fontFamily = CairoBold,
-                                        onClick = {
-                                            musicService?.playSongList(filteredSongs, index)
-                                        },
-                                        onAddToNext = {
-                                            musicService?.addToNext(song)
-                                        },
-                                        onViewArtist = { artistName ->
-                                            selectedArtistForProfile = artistName
-                                            isPlayerExpanded = false
+                                // 1. Artists Section
+                                if (matchedArtists.isNotEmpty()) {
+                                    item {
+                                        Text(
+                                            text = "من نتائج الفنانين",
+                                            color = Color.White,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = CairoBold,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                                        )
+                                        LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 4.dp)
+                                        ) {
+                                            items(matchedArtists) { artist ->
+                                                ArtistSearchCard(
+                                                    artist = artist,
+                                                    fontFamily = CairoBold,
+                                                    onClick = {
+                                                        selectedArtistForProfile = artist.name
+                                                        isPlayerExpanded = false
+                                                    }
+                                                )
+                                            }
                                         }
-                                    )
+                                    }
+                                }
+
+                                // 2. Albums Section
+                                if (matchedAlbums.isNotEmpty()) {
+                                    item {
+                                        Text(
+                                            text = "من نتائج الألبومات",
+                                            color = Color.White,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = CairoBold,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                                        )
+                                        LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 4.dp)
+                                        ) {
+                                            items(matchedAlbums) { album ->
+                                                AlbumSearchCard(
+                                                    album = album,
+                                                    fontFamily = CairoBold,
+                                                    onClick = {
+                                                        selectedAlbumForProfile = album.name
+                                                        isPlayerExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // 3. Songs Section
+                                if (filteredSongs.isNotEmpty()) {
+                                    item {
+                                        Text(
+                                            text = "جميع الأغاني المطابقة",
+                                            color = Color.White,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = CairoBold,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                    itemsIndexed(
+                                        items = filteredSongs,
+                                        key = { _, song -> song.id }
+                                    ) { index, song ->
+                                        SongRowComponent(
+                                            song = song,
+                                            fontFamily = CairoBold,
+                                            onClick = {
+                                                musicService?.playSongList(filteredSongs, index)
+                                            },
+                                            onAddToNext = {
+                                                musicService?.addToNext(song)
+                                            },
+                                            onViewArtist = { artistName ->
+                                                selectedArtistForProfile = artistName
+                                                isPlayerExpanded = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -739,5 +855,129 @@ fun AppContent(
                 )
             }
         }
+    }
+}
+
+// Data structures and Composables for music search results categorizations
+data class ArtistSearchItem(
+    val name: String,
+    val songCount: Int,
+    val sampleSongId: Long,
+    val sampleFilePath: String
+)
+
+data class AlbumSearchItem(
+    val name: String,
+    val artist: String,
+    val songCount: Int,
+    val sampleSongId: Long,
+    val sampleFilePath: String
+)
+
+@Composable
+fun ArtistSearchCard(
+    artist: ArtistSearchItem,
+    fontFamily: FontFamily,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .padding(8.dp)
+            .width(100.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(80.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.05f)),
+            contentAlignment = Alignment.Center
+        ) {
+            AlbumArtImage(
+                songId = artist.sampleSongId,
+                filePath = artist.sampleFilePath,
+                modifier = Modifier.fillMaxSize(),
+                cornerRadius = 40.dp,
+                iconSize = 24.dp
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = artist.name,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = fontFamily,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "${artist.songCount} أغنية",
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = 11.sp,
+            fontFamily = fontFamily,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+fun AlbumSearchCard(
+    album: AlbumSearchItem,
+    fontFamily: FontFamily,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .padding(8.dp)
+            .width(110.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(90.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White.copy(alpha = 0.05f)),
+            contentAlignment = Alignment.Center
+        ) {
+            AlbumArtImage(
+                songId = album.sampleSongId,
+                filePath = album.sampleFilePath,
+                modifier = Modifier.fillMaxSize(),
+                cornerRadius = 12.dp,
+                iconSize = 28.dp
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = album.name,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = fontFamily,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = album.artist,
+            color = Color(0xFF4FC3F7),
+            fontSize = 11.sp,
+            fontFamily = fontFamily,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
