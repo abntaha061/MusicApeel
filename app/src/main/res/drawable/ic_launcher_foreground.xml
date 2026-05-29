@@ -4,8 +4,21 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Apple Music style white double music note, centered within the 66dp internal safe zone -->
+    <!-- 1. Hand-drawn wavy border squircle container -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#121212"
+        android:strokeWidth="5"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M16,15 C28,14.1 48,15.8 72,15.3 C84,15.1 91,15.9 92.5,18 C94.1,20.2 92.8,32 93.1,56 C93.3,74.5 94.2,88 92.2,90 C90.2,92 78.5,91.8 54,92.5 C29.5,93.2 16.5,92.4 14.5,90.2 C12.5,88 13.8,77 13.9,54 C14,31 12.8,17.2 16,15 Z" />
+
+    <!-- 2. Hand-drawn white-filled double music note with a thick black outline -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M60,30 L45,30 C42.24,30 40,32.24 40,35 L40,65 C36.26,62.8 31.42,63.15 28,66 C23.82,69.5 22.82,75.8 25.82,80 C28.82,84.15 35.15,85.15 39.3,82.15 C43.2,79.25 44.3,74 44,70 L44,46 L60,46 L60,65 C56.26,62.8 51.42,63.15 48,66 C43.82,69.5 42.82,75.8 45.82,80 C48.82,84.15 55.15,85.15 59.3,82.15 C63.2,79.25 64.3,74 64,70 L64,34 C64,31.8 62.2,30 60,30 Z" />
+        android:strokeColor="#121212"
+        android:strokeWidth="5.5"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M38,70 C38,75.5 33.5,80 28,80 C22.5,80 18,75.5 18,70 C18,64.5 22.5,60 28,60 C32,60 35.3,62.4 37,65.8 L37,42 C37,39 39,36.5 42,36 L64,30 C67,29.2 70,31.5 70,34.5 L70,64 C70,69.5 65.5,74 60,74 C54.5,74 50,69.5 50,64 C50,58.5 54.5,54 60,54 C64,54 67.3,56.4 69,59.8 L69,40 L42,47 L42,70 Z" />
 </vector>
