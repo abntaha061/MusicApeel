@@ -78,11 +78,65 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private var hasCheckedDatabase = false
+    private val observers = mutableListOf<com.example.data.scanner.MusicFileObserver>()
+
+    fun startWatchingMusicFolder() {
+        if (observers.isNotEmpty()) return // Already watching
+        listOf(
+            "/storage/emulated/0/Music",
+            "/sdcard/Music"
+        ).forEach { path ->
+            try {
+                val observer = com.example.data.scanner.MusicFileObserver(path) { newFilePath ->
+                    viewModelScope.launch(Dispatchers.IO) {
+                        addSingleSong(newFilePath)
+                    }
+                }
+                observer.startWatching()
+                observers.add(observer)
+                android.util.Log.d("SCANNER", "Started watching $path")
+            } catch (e: Exception) {
+                android.util.Log.e("SCANNER", "Failed to watch $path", e)
+            }
+        }
+    }
+
+    fun stopWatchingMusicFolder() {
+        observers.forEach { it.stopWatching() }
+        observers.clear()
+        android.util.Log.d("SCANNER", "Stopped watching folder observers")
+    }
+
+    private suspend fun addSingleSong(filePath: String) {
+        if (!filePath.endsWith(".mp3", ignoreCase = true)) return
+        try {
+            val file = java.io.File(filePath)
+            if (!file.exists()) return
+
+            // Check if already exists in DB
+            val exists = songDao.getSongByPath(filePath) != null
+            if (exists) return
+
+            val singleSong = mediaScanner.scanSingleFile(filePath)
+            if (singleSong != null) {
+                songDao.upsertSongs(listOf(singleSong))
+                android.util.Log.d("SCANNER", "Successfully added auto-detected song: ${singleSong.title}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SCANNER", "Error adding auto-detected song: $filePath", e)
+        }
+    }
 
     fun checkAndStartLibrarySync() {
         if (hasCheckedDatabase) return
         hasCheckedDatabase = true
         syncLibrary(force = false)
+        startWatchingMusicFolder()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopWatchingMusicFolder()
     }
 
     fun syncLibrary(force: Boolean = false) {

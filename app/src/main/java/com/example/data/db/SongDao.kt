@@ -88,6 +88,9 @@ interface SongDao {
     @Query("SELECT file_path FROM songs")
     suspend fun getAllPaths(): List<String>
 
+    @Query("SELECT * FROM songs WHERE file_path = :path LIMIT 1")
+    suspend fun getSongByPath(path: String): SongEntity?
+
     @Query("DELETE FROM songs WHERE file_path IN (:paths)")
     suspend fun deleteByPaths(paths: List<String>)
 }
