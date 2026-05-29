@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -38,6 +39,8 @@ import com.example.presentation.components.GlassCard
 import com.example.presentation.components.LyricsView
 import com.example.presentation.home.formatDuration
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun PlayerScreen(
@@ -74,17 +77,22 @@ fun PlayerScreen(
         playerViewModel.updateSong(currentSong)
     }
 
-    // Dynamic bitmap cover art to blur and project onto background for depth
-    val bitmap = remember(currentSong.filePath) {
-        try {
-            val retriever = MediaMetadataRetriever()
-            retriever.setDataSource(currentSong.filePath)
-            val bytes = retriever.embeddedPicture
-            retriever.release()
-            bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
-        } catch (e: Exception) {
-            null
+    // Dynamic bitmap cover art to blur and project onto background for depth (loaded safely in background thread)
+    var bitmap by remember(currentSong.filePath) { mutableStateOf<ImageBitmap?>(null) }
+
+    LaunchedEffect(currentSong.filePath) {
+        val loaded = withContext(Dispatchers.IO) {
+            try {
+                val retriever = MediaMetadataRetriever()
+                retriever.setDataSource(currentSong.filePath)
+                val bytes = retriever.embeddedPicture
+                retriever.release()
+                bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
+            } catch (e: Exception) {
+                null
+            }
         }
+        bitmap = loaded
     }
 
     Box(
@@ -102,9 +110,10 @@ fun PlayerScreen(
         AuroraBackground(dominantColors = dominantColors, modifier = Modifier.fillMaxSize())
 
         // B. Large blurred low-opacity Album Art Background to give maximum depth
-        if (bitmap != null) {
+        val currentBitmap = bitmap
+        if (currentBitmap != null) {
             Image(
-                bitmap = bitmap,
+                bitmap = currentBitmap,
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()

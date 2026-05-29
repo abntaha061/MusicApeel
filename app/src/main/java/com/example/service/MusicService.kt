@@ -177,27 +177,10 @@ class MusicService : MediaSessionService() {
         return mediaSession
     }
 
-    private fun getArtworkBytes(filePath: String): ByteArray? {
-        return try {
-            val retriever = android.media.MediaMetadataRetriever()
-            retriever.setDataSource(filePath)
-            val bytes = retriever.embeddedPicture
-            retriever.release()
-            bytes
-        } catch (e: Exception) {
-            null
-        }
-    }
-
     private fun createMediaItem(song: SongEntity, mediaUri: String): MediaItem {
         val metadataBuilder = MediaMetadata.Builder()
             .setTitle(song.title)
             .setArtist(song.artist)
-            
-        val artworkBytes = getArtworkBytes(song.filePath)
-        if (artworkBytes != null) {
-            metadataBuilder.setArtworkData(artworkBytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-        }
 
         return MediaItem.Builder()
             .setMediaId(song.id.toString())

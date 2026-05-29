@@ -422,7 +422,10 @@ fun AppContent(
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                itemsIndexed(filteredSongs) { index, song ->
+                                itemsIndexed(
+                                    items = filteredSongs,
+                                    key = { _, song -> song.id }
+                                ) { index, song ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -510,7 +513,10 @@ fun AppContent(
                                     verticalArrangement = Arrangement.spacedBy(10.dp),
                                     modifier = Modifier.fillMaxSize()
                                 ) {
-                                    itemsIndexed(allSongs) { index, song ->
+                                    itemsIndexed(
+                                        items = allSongs,
+                                        key = { _, song -> song.id }
+                                    ) { index, song ->
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()

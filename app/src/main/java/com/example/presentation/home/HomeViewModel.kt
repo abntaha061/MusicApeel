@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -64,12 +65,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             totalArtists = songDao.getTotalArtists(),
             totalAlbums = songDao.getTotalAlbums()
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LibraryStats(0, 0, 0, 0))
+    }.flowOn(Dispatchers.IO)
+     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LibraryStats(0, 0, 0, 0))
 
     val artistsForYou: StateFlow<List<ArtistWithArt>> = allSongs.map {
         val allArtists = songDao.getAllArtistsWithSongs()
         allArtists.shuffled().take(5)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.IO)
+     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val mostPlayedSong: StateFlow<SongEntity?> = songDao.getMostPlayedSong()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
