@@ -274,7 +274,11 @@ fun AppContent(
                     ) {
                         NavigationBarItem(
                             selected = selectedTab == "home",
-                            onClick = { selectedTab = "home" },
+                            onClick = {
+                                selectedTab = "home"
+                                selectedArtistForProfile = null
+                                showAllSongsScreen = false
+                            },
                             icon = { Icon(Icons.Rounded.Home, contentDescription = null) },
                             label = { Text("الرئيسية", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
                             colors = NavigationBarItemDefaults.colors(
@@ -288,7 +292,11 @@ fun AppContent(
 
                         NavigationBarItem(
                             selected = selectedTab == "search",
-                            onClick = { selectedTab = "search" },
+                            onClick = {
+                                selectedTab = "search"
+                                selectedArtistForProfile = null
+                                showAllSongsScreen = false
+                            },
                             icon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                             label = { Text("البحث", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
                             colors = NavigationBarItemDefaults.colors(
@@ -302,7 +310,11 @@ fun AppContent(
 
                         NavigationBarItem(
                             selected = selectedTab == "library",
-                            onClick = { selectedTab = "library" },
+                            onClick = {
+                                selectedTab = "library"
+                                selectedArtistForProfile = null
+                                showAllSongsScreen = false
+                            },
                             icon = { Icon(Icons.Rounded.LibraryMusic, contentDescription = null) },
                             label = { Text("مكتبتي", fontFamily = CairoBold, fontWeight = FontWeight.SemiBold) },
                             colors = NavigationBarItemDefaults.colors(

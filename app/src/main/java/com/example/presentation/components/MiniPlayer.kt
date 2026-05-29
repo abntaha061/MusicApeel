@@ -54,8 +54,7 @@ fun MiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
-            .height(72.dp)
-            .clickable { onMiniPlayerClicked() },
+            .height(72.dp),
         opacity = 0.18f,
         cornerRadius = 18.dp
     ) {
@@ -73,6 +72,7 @@ fun MiniPlayer(
         Row(
             modifier = Modifier
                 .fillMaxSize()
+                .clickable { onMiniPlayerClicked() }
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
