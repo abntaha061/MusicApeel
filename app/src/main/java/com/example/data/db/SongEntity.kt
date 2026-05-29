@@ -16,5 +16,6 @@ data class SongEntity(
     
     // Smart stats
     @ColumnInfo(name = "play_count") val playCount: Int = 0,
-    @ColumnInfo(name = "last_played_timestamp") val lastPlayedTimestamp: Long = 0L // System.currentTimeMillis()
+    @ColumnInfo(name = "last_played_timestamp") val lastPlayedTimestamp: Long = 0L, // System.currentTimeMillis()
+    @ColumnInfo(name = "date_added", defaultValue = "0") val dateAdded: Long = 0L
 )

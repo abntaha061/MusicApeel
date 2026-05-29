@@ -89,7 +89,8 @@ class MediaScanner(private val context: Context) {
                     ?: "ألبوم غير معروف",
                 duration = duration,
                 filePath = file.absolutePath,
-                albumArtUri = null // Will be loaded dynamically on-demand
+                albumArtUri = null, // Will be loaded dynamically on-demand
+                dateAdded = file.lastModified()
             )
         } finally {
             try {

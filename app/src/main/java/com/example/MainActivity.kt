@@ -169,7 +169,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalAnimationApi::class)
+@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun AppContent(
     musicService: MusicService?,
@@ -200,6 +200,8 @@ fun AppContent(
     var selectedTab by remember { mutableStateOf("home") }
     var isPlayerExpanded by remember { mutableStateOf(false) }
     var showAllSongsScreen by remember { mutableStateOf(false) }
+    var showSortBottomSheet by remember { mutableStateOf(false) }
+    val sortOrder by homeViewModel.sortOrder.collectAsState()
     var selectedArtistForProfile by remember { mutableStateOf<String?>(null) }
     var selectedAlbumForProfile by remember { mutableStateOf<String?>(null) }
 
@@ -617,7 +619,7 @@ fun AppContent(
                                 .fillMaxSize()
                                 .background(Color.Black.copy(alpha = 0.45f))
                         ) {
-                            // Header with beautiful back button and count
+                            // Header with beautiful back button, count and sorting mechanism button
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -626,13 +628,32 @@ fun AppContent(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "${allSongs.size} أغنية",
-                                    color = Color.White,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = CairoBold
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Text(
+                                        text = "${allSongs.size} أغنية",
+                                        color = Color.White,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = CairoBold
+                                    )
+
+                                    IconButton(
+                                        onClick = { showSortBottomSheet = true },
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.White.copy(alpha = 0.08f))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Sort,
+                                            contentDescription = "ترتيب الأغاني",
+                                            tint = Color.White
+                                        )
+                                    }
+                                }
 
                                 IconButton(
                                     onClick = { showAllSongsScreen = false },
@@ -853,6 +874,65 @@ fun AppContent(
                     },
                     musicService = musicService
                 )
+            }
+
+            if (showSortBottomSheet) {
+                ModalBottomSheet(
+                    onDismissRequest = { showSortBottomSheet = false },
+                    containerColor = Color(0xFF141414),
+                    scrimColor = Color.Black.copy(alpha = 0.6f),
+                    dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(0.3f)) }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(start = 24.dp, end = 24.dp, bottom = 32.dp, top = 8.dp)
+                    ) {
+                        Text(
+                            text = "ترتيب الأغاني",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = CairoBold,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                        
+                        com.example.presentation.home.SortOrder.values().forEach { order ->
+                            val isSelected = sortOrder == order
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isSelected) Color.White.copy(0.08f) else Color.Transparent)
+                                    .clickable {
+                                        homeViewModel.setSortOrder(order)
+                                        showSortBottomSheet = false
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = order.displayName,
+                                    color = if (isSelected) Color(0xFF4FC3F7) else Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontFamily = CairoBold
+                                )
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Check,
+                                        contentDescription = "محدد",
+                                        tint = Color(0xFF4FC3F7),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+                    }
+                }
             }
         }
     }

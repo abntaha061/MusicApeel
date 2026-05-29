@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 
@@ -30,12 +31,29 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
-    val allSongs: StateFlow<List<SongEntity>> = songDao.getAllSongs()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private val _sortOrder = MutableStateFlow(SortOrder.ALPHABETICAL_ASC)
+    val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
+
+    fun setSortOrder(order: SortOrder) {
+        _sortOrder.value = order
+    }
+
+    val allSongs: StateFlow<List<SongEntity>> = combine(
+        songDao.getAllSongs(),
+        _sortOrder
+    ) { songs, order ->
+        when (order) {
+            SortOrder.ALPHABETICAL_ASC -> songs.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
+            SortOrder.ALPHABETICAL_DESC -> songs.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.title })
+            SortOrder.DATE_ADDED_DESC -> songs.sortedByDescending { if (it.dateAdded == 0L) it.id else it.dateAdded }
+            SortOrder.DATE_ADDED_ASC -> songs.sortedBy { if (it.dateAdded == 0L) it.id else it.dateAdded }
+        }
+    }.flowOn(Dispatchers.IO)
+     .stateIn(
+         scope = viewModelScope,
+         started = SharingStarted.WhileSubscribed(5000),
+         initialValue = emptyList()
+     )
 
     val recentlyPlayed: StateFlow<List<SongEntity>> = songDao.getRecentlyPlayed()
         .stateIn(
