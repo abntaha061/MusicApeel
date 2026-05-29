@@ -124,6 +124,12 @@ fun AppContent(
     val isPlaying = musicService?.isPlaying?.collectAsState()?.value ?: false
     val currentPosition = musicService?.currentPosition?.collectAsState()?.value ?: 0L
 
+    LaunchedEffect(currentSong) {
+        if (currentSong != null) {
+            playerViewModel.updateSong(currentSong)
+        }
+    }
+
     var selectedTab by remember { mutableStateOf("home") }
     var isPlayerExpanded by remember { mutableStateOf(false) }
     var showAllSongsScreen by remember { mutableStateOf(false) }
