@@ -4,14 +4,16 @@ import android.content.Context
 import android.os.Environment
 import com.example.data.db.SongDao
 import com.example.data.db.SongEntity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class MediaScanner(private val context: Context, private val songDao: SongDao) {
 
-    suspend fun scanAndPopulate(force: Boolean = false) {
+    suspend fun scanAndPopulate(force: Boolean = false) = withContext(Dispatchers.IO) {
         val count = songDao.getTotalSongsCount()
         if (count > 0 && !force) {
-            return
+            return@withContext
         }
 
         if (force) {

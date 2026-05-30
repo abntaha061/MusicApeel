@@ -95,7 +95,11 @@ class MusicService : Service() {
         }
 
         startTicker()
-        startForeground(101, buildNotification(song))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(101, buildNotification(song), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        } else {
+            startForeground(101, buildNotification(song))
+        }
     }
 
     fun togglePlayPause() {
@@ -117,7 +121,11 @@ class MusicService : Service() {
             } catch (e: Exception) { e.printStackTrace() }
             startTicker()
         }
-        startForeground(101, buildNotification(song))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(101, buildNotification(song), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        } else {
+            startForeground(101, buildNotification(song))
+        }
     }
 
     fun next() {
